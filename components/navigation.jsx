@@ -21,7 +21,7 @@ export function MainNavigation() {
     <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center space-x-2 group">
-          <Navigation className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
+          <img src="/logo.png" className="h-8 w-8 text-primary transition-transform group-hover:scale-110" />
           <span className="text-2xl font-bold text-foreground">UrbanEyes</span>
         </Link>
 
@@ -40,11 +40,23 @@ export function MainNavigation() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <ThemeToggle />
-          <Button variant="outline" size="sm" className="transition-all duration-300 hover:scale-105 bg-transparent">
-            <Globe className="h-4 w-4 mr-2" />
-            EN
-          </Button>
+          <Link href="/login">
+            <Button
+              variant="outline"
+              size="sm"
+              className="transition-all duration-300 hover:scale-105"
+            >
+              Login
+            </Button>
+          </Link>
+          <Link href="/signup">
+            <Button
+              size="sm"
+              className="transition-all duration-300 hover:scale-105 bg-primary text-white"
+            >
+              Signup
+            </Button>
+          </Link>
 
           {/* Mobile Navigation */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -75,5 +87,5 @@ export function MainNavigation() {
         </div>
       </div>
     </nav>
-  )
+  );
 }

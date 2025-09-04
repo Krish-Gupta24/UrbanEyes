@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { FloatingActionButton } from "@/components/floating-action-button";
 import { FadeIn, SlideIn } from "@/components/page-transition";
+import { MainNavigation } from "@/components/navigation";
 
 // ✅ Tailwind-safe color mapping
 const colorClasses = {
@@ -93,40 +94,7 @@ export default function HomePage() {
       {/* Foreground Content */}
       <div className="relative z-10">
         {/* Navigation */}
-        <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <SlideIn direction="left">
-              <div className="flex items-center space-x-2">
-                <Link href="/" className="flex items-center space-x-2">
-                  <img
-                    src="/logo.png"
-                    className="h-10 transition-transform hover:scale-110"
-                  />
-                  <span className="text-2xl font-bold text-foreground">
-                    UrbanEyes
-                  </span>
-                </Link>
-              </div>
-            </SlideIn>
-            <div className="hidden md:flex items-center space-x-6">
-              <SlideIn direction="down" delay={0.1}>
-                <Link href="/route" className="hover:text-primary">
-                  Route Planner
-                </Link>
-              </SlideIn>
-              <SlideIn direction="down" delay={0.2}>
-                <Link href="/parking" className="hover:text-primary">
-                  Parking Finder
-                </Link>
-              </SlideIn>
-              <SlideIn direction="down" delay={0.3}>
-                <Link href="/ar" className="hover:text-primary">
-                  AR Landmarks
-                </Link>
-              </SlideIn>
-            </div>
-          </div>
-        </nav>
+        <MainNavigation/>
 
         {/* Hero Section */}
         <section className="relative container mx-auto px-4 py-20 text-center">
