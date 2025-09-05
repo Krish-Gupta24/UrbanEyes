@@ -94,3 +94,52 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request, { params }) {
+  try {
+    const token = await getToken({ req: request });
+    if (!token || token.role !== "OWNER") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    // Check if the parking spot exists and belongs to the user
+    const spot = await db.parkingSpot.findFirst({
+      where: {
+        id: id,
+        ownerId: token.id
+      }
+    });
+
+    if (!spot) {
+      return NextResponse.json({ error: "Parking spot not found or unauthorized" }, { status: 404 });
+    }
+
+    // Delete the parking spot and all related data in a transaction
+    await db.$transaction(async (tx) => {
+      // Delete related bookings first
+      await tx.booking.deleteMany({
+        where: { parkingSpotId: id }
+      });
+
+      // Delete related slips
+      await tx.parkingSlip.deleteMany({
+        where: { parkingSpotId: id }
+      });
+
+      // Delete the parking spot
+      await tx.parkingSpot.delete({
+        where: { id: id }
+      });
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      message: "Parking spot deleted successfully" 
+    });
+  } catch (error) {
+    console.error("Error deleting parking spot:", error);
+    return NextResponse.json({ error: "Failed to delete parking spot" }, { status: 500 });
+  }
+}

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ParkingSpotCard } from "@/components/parking-spot-card";
 import { MapPin, Plus, Edit, Trash2, ArrowLeft, DollarSign, Clock } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ export default function ParkingSpotsPage() {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingSpot, setDeletingSpot] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     address: "",
@@ -177,6 +179,33 @@ export default function ParkingSpotsPage() {
     }
   };
 
+  const handleDeleteSpot = async (spotId) => {
+    if (!confirm("Are you sure you want to delete this parking spot? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeletingSpot(spotId);
+    try {
+      const response = await fetch(`/api/admin/parking-spots/${spotId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        // Remove the spot from the local state
+        setSpots(prev => prev.filter(spot => spot.id !== spotId));
+        toast.success("Parking spot deleted successfully");
+      } else {
+        const errorData = await response.json();
+        toast.error(`Failed to delete parking spot: ${errorData.error}`);
+      }
+    } catch (err) {
+      console.error("Error deleting parking spot:", err);
+      toast.error("Network error occurred while deleting parking spot");
+    } finally {
+      setDeletingSpot(null);
+    }
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -314,76 +343,57 @@ export default function ParkingSpotsPage() {
               </Button>
             </div>
           ) : (
-            spots.map((spot) => (
-              <Card key={spot.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{spot.title}</CardTitle>
-                    <Badge variant={spot.isAvailable ? "default" : "secondary"}>
-                      {spot.isAvailable ? "Available" : "Unavailable"}
-                    </Badge>
-                  </div>
-                  <CardDescription className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {spot.address}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {spot.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {spot.description}
-                    </p>
-                  )}
+            spots.map((spot) => {
+              // Transform spot data to match component expectations
+              const spotData = {
+                ...spot,
+                availableSpots: (spot.totalSpots || 0) - (spot.occupiedSpots || 0),
+                distance: 0 // Admin view doesn't need distance
+              };
+              
+              return (
+                <div key={spot.id} className="space-y-4">
+                  <ParkingSpotCard
+                    spot={spotData}
+                    showDeleteButton={true}
+                    onDelete={handleDeleteSpot}
+                    isDeleting={deletingSpot === spot.id}
+                  />
+                  
+                  {/* Additional admin controls */}
+                  <Card className="p-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => deleteManualSlip(spot.id)}>-</Button>
+                          <Button size="sm" onClick={() => createManualSlip(spot.id)}><Plus className="h-4 w-4" /></Button>
+                          <Link href={`/admin/parking-spots/${spot.id}`}>
+                            <Button size="sm" variant="outline">Details</Button>
+                          </Link>
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center text-muted-foreground">
-                      <DollarSign className="h-4 w-4 mr-1" />
-                      <span>₹{spot.pricePerHour}/hour</span>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => toggleAvailability(spot.id, spot.isAvailable)}
+                          className="flex-1"
+                        >
+                          {spot.isAvailable ? "Mark Unavailable" : "Mark Available"}
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center text-muted-foreground">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{spot._count?.bookings || 0} bookings</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => deleteManualSlip(spot.id)}>-</Button>
-                      <Button size="sm" onClick={() => createManualSlip(spot.id)}><Plus className="h-4 w-4" /></Button>
-                      <Link href={`/admin/parking-spots/${spot.id}`}>
-                        <Button size="sm" variant="outline">Details</Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        toggleAvailability(spot.id, spot.isAvailable)
-                      }
-                      className="flex-1"
-                    >
-                      {spot.isAvailable ? "Mark Unavailable" : "Mark Available"}
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </Card>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
