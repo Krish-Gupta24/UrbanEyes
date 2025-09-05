@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, RotateCcw, Clock, Route, Car, Users, DollarSign, RefreshCw, AlertCircle } from "lucide-react";
 import { MainNavigation } from "@/components/navigation";
+import { ParkingSpotListItem } from "@/components/parking-spot-card";
 import { toast } from "sonner";
 
 export default function RoutePage() {
@@ -565,52 +566,16 @@ export default function RoutePage() {
                 ) : nearbySpots.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {nearbySpots.map((spot, index) => (
-                      <div
+                      <ParkingSpotListItem
                         key={spot.id}
-                        className="p-3 border rounded-lg hover:bg-purple-50 transition-colors cursor-pointer"
+                        spot={spot}
                         onClick={() => {
                           // Center map on this parking spot
                           if (leafletMapRef.current) {
                             leafletMapRef.current.setView([spot.latitude, spot.longitude], 16);
                           }
                         }}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm">{spot.title}</h4>
-                            <p className="text-xs text-gray-600 mt-1">{spot.address}</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-bold text-purple-700">
-                              ₹{spot.pricePerHour}/hr
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {spot.distance} km
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            <span className={spot.availableSpots > 0 ? "text-green-600" : "text-red-600"}>
-                              {spot.availableSpots}/{spot.totalSpots} available
-                            </span>
-                          </div>
-                          <Badge 
-                            variant={spot.availableSpots > 0 ? "default" : "destructive"}
-                            className="text-xs"
-                          >
-                            {spot.availableSpots > 0 ? "Available" : "Full"}
-                          </Badge>
-                        </div>
-                        
-                        {spot.description && (
-                          <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                            {spot.description}
-                          </p>
-                        )}
-                      </div>
+                      />
                     ))}
                   </div>
                 ) : (

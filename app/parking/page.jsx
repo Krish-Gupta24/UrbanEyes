@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MainNavigation } from "@/components/navigation"
+import { ParkingSpotCard } from "@/components/parking-spot-card"
 import { MapPin, Search, Filter, DollarSign, Clock, Star, Navigation, Phone, Zap, Trash2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 
@@ -61,12 +62,49 @@ export default function ParkingPage() {
     }
   }
 
+  const fetchAllParkingSpots = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/parking-spots')
+      if (response.ok) {
+        const data = await response.json()
+        // Add default distance and availableSpots for consistency
+        const spotsWithDefaults = data.spots.map(spot => ({
+          ...spot,
+          distance: 0, // Will be calculated if needed
+          availableSpots: spot.totalSpots - spot.occupiedSpots
+        }))
+        setParkingSpots(spotsWithDefaults)
+      } else {
+        throw new Error("Failed to fetch parking spots")
+      }
+    } catch (err) {
+      setError(err.message || "Network error occurred")
+      console.error("Parking API error:", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    fetchParkingData()
+    // Load all parking spots by default
+    fetchAllParkingSpots()
+  }, [])
+
+  // Separate effect for search functionality
+  useEffect(() => {
+    if (searchLocation && searchLocation !== "Taj Mahal, Agra") {
+      fetchParkingData()
+    }
   }, [searchLocation, radiusFilter, availabilityFilter])
 
   const handleSearch = () => {
-    fetchParkingData()
+    if (searchLocation === "Taj Mahal, Agra" || !searchLocation.trim()) {
+      fetchAllParkingSpots()
+    } else {
+      fetchParkingData()
+    }
   }
 
   const handleDeleteSpot = async (spotId) => {
@@ -96,20 +134,6 @@ export default function ParkingPage() {
     }
   }
 
-  const getAvailabilityColor = (availableSpots, totalSpots) => {
-    const availability = availableSpots > 0 ? (availableSpots <= 2 ? "limited" : "available") : "full"
-    switch (availability) {
-      case "available":
-        return "text-green-600 bg-green-50 border-green-200"
-      case "limited":
-        return "text-yellow-600 bg-yellow-50 border-yellow-200"
-      case "full":
-        return "text-red-600 bg-red-50 border-red-200"
-      default:
-        return "text-gray-600 bg-gray-50 border-gray-200"
-    }
-  }
-
   const getAvailabilityText = (availableSpots, totalSpots) => {
     if (availableSpots === 0) return "full"
     if (availableSpots <= 2) return "limited"
@@ -126,7 +150,7 @@ export default function ParkingPage() {
     }
     const distance = spot.distance
     const maxRadius = Number.parseInt(radiusFilter)
-    if (distance > maxRadius) return false
+    if (distance > 0 && distance > maxRadius) return false
     return true
   })
 
@@ -145,7 +169,7 @@ export default function ParkingPage() {
         {/* Search and Filters */}
         <Card className="mb-8 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <div className="md:col-span-2">
                 <Input
                   placeholder="Search location or landmark"
@@ -171,6 +195,15 @@ export default function ParkingPage() {
               <Button onClick={handleSearch} disabled={isLoading} className="w-full">
                 <Search className="h-4 w-4 mr-2" />
                 {isLoading ? "Searching..." : "Search Parking"}
+              </Button>
+
+              <Button 
+                onClick={fetchAllParkingSpots} 
+                disabled={isLoading} 
+                variant="outline"
+                className="w-full"
+              >
+                Show All
               </Button>
             </div>
 
@@ -223,99 +256,15 @@ export default function ParkingPage() {
           <>
             {/* Parking Spots Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredSpots.map((spot) => {
-                const availability = getAvailabilityText(spot.availableSpots, spot.totalSpots)
-                return (
-                  <Card
-                    key={spot.id}
-                    className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-card/50 backdrop-blur-sm"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">{spot.title}</CardTitle>
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3" />
-                            {spot.distance.toFixed(2)} km away
-                          </CardDescription>
-                        </div>
-                        <Badge className={`${getAvailabilityColor(spot.availableSpots, spot.totalSpots)} border`}>
-                          {availability}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-1 text-primary font-semibold">
-                          <DollarSign className="h-4 w-4" />
-                          ₹{spot.pricePerHour}/hr
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                      <p className="text-sm text-muted-foreground">{spot.address}</p>
-                      
-                      {spot.description && (
-                        <p className="text-sm text-muted-foreground">{spot.description}</p>
-                      )}
-
-                      {/* Availability Bar */}
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Availability</span>
-                          <span className="font-medium">
-                            {spot.availableSpots}/{spot.totalSpots} spots
-                          </span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all ${
-                              availability === "available"
-                                ? "bg-green-500"
-                                : availability === "limited"
-                                  ? "bg-yellow-500"
-                                  : "bg-red-500"
-                            }`}
-                            style={{ width: `${(spot.availableSpots / spot.totalSpots) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2 pt-2">
-                        <Button 
-                          className="flex-1" 
-                          disabled={availability === "full"}
-                          onClick={() => window.open('/booking', '_blank')}
-                        >
-                          <Navigation className="h-4 w-4 mr-2" />
-                          {availability === "full" ? "Full" : "Book Now"}
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={availability === "full"}
-                          onClick={() => window.open('/route', '_blank')}
-                        >
-                          <MapPin className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="destructive" 
-                          size="sm" 
-                          disabled={deletingSpot === spot.id}
-                          onClick={() => handleDeleteSpot(spot.id)}
-                        >
-                          {deletingSpot === spot.id ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+              {filteredSpots.map((spot) => (
+                <ParkingSpotCard
+                  key={spot.id}
+                  spot={spot}
+                  showDeleteButton={true}
+                  onDelete={handleDeleteSpot}
+                  isDeleting={deletingSpot === spot.id}
+                />
+              ))}
             </div>
 
             {/* Quick Stats */}
