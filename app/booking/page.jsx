@@ -33,58 +33,6 @@ export default function BookingPage() {
   const [isBooking, setIsBooking] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connected');
 
-  // Online/offline detection with connection status
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      setConnectionStatus('connected');
-      // Refresh data when coming back online
-      if (!loading && !refreshing) {
-        fetchSpots(true);
-      }
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      setConnectionStatus('disconnected');
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [loading, refreshing, fetchSpots]);
-
-  // Initial data fetch
-  useEffect(() => {
-    fetchSpots();
-  }, []);
-
-  // Auto-refresh every 15 seconds for better real-time experience
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isOnline && !loading && !refreshing) {
-        fetchSpots(true); // Silent refresh
-      }
-    }, 15000); // Reduced from 30s to 15s for better real-time updates
-
-    return () => clearInterval(interval);
-  }, [isOnline, loading, refreshing]);
-
-  // Additional refresh on window focus for better UX
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isOnline && !loading && !refreshing) {
-        fetchSpots(true);
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isOnline, loading, refreshing, fetchSpots]);
-
   const fetchSpots = useCallback(async (silent = false) => {
     if (!isOnline) {
       setError("You're offline. Please check your internet connection.");
@@ -134,6 +82,58 @@ export default function BookingPage() {
       setRefreshing(false);
     }
   }, [isOnline]);
+
+  // Online/offline detection with connection status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setConnectionStatus('connected');
+      // Refresh data when coming back online
+      if (!loading && !refreshing) {
+        fetchSpots(true);
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setConnectionStatus('disconnected');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loading, refreshing, fetchSpots]);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchSpots();
+  }, [fetchSpots]);
+
+  // Auto-refresh every 15 seconds for better real-time experience
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isOnline && !loading && !refreshing) {
+        fetchSpots(true); // Silent refresh
+      }
+    }, 15000); // Reduced from 30s to 15s for better real-time updates
+
+    return () => clearInterval(interval);
+  }, [isOnline, loading, refreshing, fetchSpots]);
+
+  // Additional refresh on window focus for better UX
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isOnline && !loading && !refreshing) {
+        fetchSpots(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isOnline, loading, refreshing, fetchSpots]);
 
   const handleBooking = async () => {
     if (!selectedSpot) {
