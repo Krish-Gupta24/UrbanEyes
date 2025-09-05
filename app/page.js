@@ -43,17 +43,19 @@ export default function HomePage() {
   const [fromLocation, setFromLocation] = useState("");
   const [toLocation, setToLocation] = useState("");
   const router = useRouter();
+  
 
   const handleQuickSearch = () => {
     if (fromLocation.trim() || toLocation.trim()) {
       const params = new URLSearchParams();
-      if (fromLocation.trim()) params.set("from", fromLocation.trim());
-      if (toLocation.trim()) params.set("to", toLocation.trim());
+      if (fromLocation.trim()) params.set("from", fromLocation.trim()); // ✅ correct
+      if (toLocation.trim()) params.set("to", toLocation.trim()); // ✅ correct
       router.push(`/route?${params.toString()}`);
     } else {
       router.push("/route");
     }
   };
+
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") handleQuickSearch();
@@ -94,7 +96,7 @@ export default function HomePage() {
       {/* Foreground Content */}
       <div className="relative z-10">
         {/* Navigation */}
-        <MainNavigation/>
+        <MainNavigation />
 
         {/* Hero Section */}
         <section className="relative container mx-auto px-4 py-20 text-center">
@@ -140,9 +142,9 @@ export default function HomePage() {
                     <Search className="h-6 w-6 text-gray-400 mr-4" />
                     <input
                       type="text"
-                      placeholder="From: Current location"
-                      value={fromLocation}
-                      onChange={(e) => setFromLocation(e.target.value)}
+                      placeholder="Where would you like to explore today?"
+                      value={toLocation}
+                      onChange={(e) => setToLocation(e.target.value)}
                       onKeyPress={handleKeyPress}
                       className="flex-1 outline-none text-gray-700 placeholder-gray-400 text-xl font-roboto"
                     />
