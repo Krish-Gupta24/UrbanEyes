@@ -35,12 +35,17 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data) => {
-    const { name, email, password } = data;
+    const { email, password } = data;
     setErrorMessage(null);
+
+    // Basic validation
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters");
+      return;
+    }
 
     const res = await signIn("credentials", {
       redirect: false,
-      name,
       email,
       password,
     });
@@ -84,19 +89,7 @@ export default function SignIn() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Enter your name"
-                  {...register("name")}
-                  className="bg-input border-border focus:ring-2 focus:ring-ring"
-                />
-                {errors.name && (
-                  <p className="text-xs text-red-500">{errors.name.message}</p>
-                )}
-              </div>
+              
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>

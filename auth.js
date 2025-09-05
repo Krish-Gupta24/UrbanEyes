@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { signInSchema } from "./lib/zod";
-import { prisma } from "./lib/prisma";
+import { db } from "./lib/prisma";
 
 // Function to salt and hash the password
 const saltAndHashPassword = (password) => {
@@ -31,7 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           );
 
           // Check if user exists
-          let user = await prisma.user.findUnique({
+          let user = await db.user.findUnique({
             where: { email },
           });
 
@@ -49,7 +49,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           else if (name) {
             const hashedPassword = saltAndHashPassword(password);
 
-            user = await prisma.user.create({
+            user = await db.user.create({
               data: {
                 name,
                 email,

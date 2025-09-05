@@ -17,7 +17,6 @@ import { useRouter } from "next/navigation";
 import { AnimatedCounter } from "@/components/animated-counter";
 import { FloatingActionButton } from "@/components/floating-action-button";
 import { FadeIn, SlideIn } from "@/components/page-transition";
-import { MainNavigation } from "@/components/navigation";
 
 // ✅ Tailwind-safe color mapping
 const colorClasses = {
@@ -96,7 +95,7 @@ export default function HomePage() {
       {/* Foreground Content */}
       <div className="relative z-10">
         {/* Navigation */}
-        <MainNavigation />
+        
 
         {/* Hero Section */}
         <section className="relative container mx-auto px-4 py-20 text-center">

@@ -4,6 +4,8 @@ import { GeistMono } from "geist/font/mono";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Suspense } from "react";
 import "./globals.css";
+import { MainNavigation } from "@/components/navigation";
+import { Providers } from "@/components/providers";
 
 
 export const metadata = {
@@ -29,17 +31,20 @@ export default function RootLayout({
       <body
         className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}
       >
-        <Suspense fallback={null}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange={false}
-            storageKey="UrbanEyes-theme"
-          >
-            {children}
-          </ThemeProvider>
-        </Suspense>
+        <Providers>
+          <Suspense fallback={null}>
+            <MainNavigation/>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange={false}
+              storageKey="UrbanEyes-theme"
+            >
+              {children}
+            </ThemeProvider>
+          </Suspense>
+        </Providers>
       </body>
     </html>
   );

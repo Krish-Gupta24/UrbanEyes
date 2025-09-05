@@ -79,7 +79,6 @@ export default function ParkingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/30 to-accent/10">
-      <MainNavigation />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}

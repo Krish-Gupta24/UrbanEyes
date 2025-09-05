@@ -4,11 +4,13 @@ import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Navigation, Menu, Globe } from "lucide-react"
+import { Navigation, Menu, Globe, User, LogOut, Settings } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useSession, signOut } from "next-auth/react"
 
 export function MainNavigation() {
   const [isOpen, setIsOpen] = useState(false)
+  const { data: session, status } = useSession()
 
   const navItems = [
     { href: "/", label: "Home" },
@@ -16,6 +18,10 @@ export function MainNavigation() {
     { href: "/parking", label: "Parking Finder" },
     { href: "/ar", label: "AR Landmarks" },
   ]
+
+  const handleSignOut = () => {
+    signOut({ callbackUrl: "/" })
+  }
 
   return (
     <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50 transition-all duration-300">
@@ -40,23 +46,56 @@ export function MainNavigation() {
         </div>
 
         <div className="flex items-center space-x-4">
-          <Link href="/login">
-            <Button
-              variant="outline"
-              size="sm"
-              className="transition-all duration-300 hover:scale-105"
-            >
-              Login
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button
-              size="sm"
-              className="transition-all duration-300 hover:scale-105 bg-primary text-white"
-            >
-              Signup
-            </Button>
-          </Link>
+          {status === "loading" ? (
+            <div className="w-20 h-8 bg-muted animate-pulse rounded" />
+          ) : session ? (
+            <div className="flex items-center space-x-2">
+              {session.user?.role === "OWNER" && (
+                <Link href="/admin/dashboard">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="transition-all duration-300 hover:scale-105"
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{session.user?.name || session.user?.email}</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="transition-all duration-300 hover:scale-105"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="transition-all duration-300 hover:scale-105"
+                >
+                  Login
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button
+                  size="sm"
+                  className="transition-all duration-300 hover:scale-105 bg-primary text-white"
+                >
+                  Signup
+                </Button>
+              </Link>
+            </>
+          )}
 
           {/* Mobile Navigation */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>

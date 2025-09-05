@@ -47,6 +47,12 @@ export default function SignupPage() {
   const handleSignup = async (e) => {
     e.preventDefault();
 
+    // Basic validation
+    if (formData.password.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       toast.error("Passwords do not match");
       return;
@@ -59,7 +65,12 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          fullName: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.userType === "parking-owner" ? "OWNER" : "REGULAR",
+        }),
       });
 
       if (!res.ok) {
@@ -81,7 +92,7 @@ export default function SignupPage() {
       if (loginRes?.error) {
         toast.error("Login failed after signup");
       } else {
-        router.push(`/auth/onboarding?type=${formData.userType}`);
+        router.push(`/onboarding`);
       }
     } catch (err) {
       toast.error("Something went wrong");
