@@ -25,24 +25,42 @@ export async function POST(request) {
     const hours = (end - start) / (1000 * 60 * 60);
     const totalPrice = hours * spot.pricePerHour;
 
-    // Create booking
-    const booking = await db.booking.create({
-      data: {
-        parkingSpotId,
-        ownerId: spot.ownerId,
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        totalPrice,
-        customerName,
-        customerEmail,
-        customerPhone,
-        carNumber
-      }
+    // Check if spot is available
+    if (spot.occupiedSpots >= spot.totalSpots) {
+      return NextResponse.json({ error: "Parking spot is full" }, { status: 409 });
+    }
+
+    // Create booking and update parking spot in a transaction
+    const result = await db.$transaction(async (tx) => {
+      // Create booking
+      const booking = await tx.booking.create({
+        data: {
+          parkingSpotId,
+          ownerId: spot.ownerId,
+          startTime: new Date(startTime),
+          endTime: new Date(endTime),
+          totalPrice,
+          customerName,
+          customerEmail,
+          customerPhone,
+          carNumber
+        }
+      });
+
+      // Update parking spot occupancy
+      await tx.parkingSpot.update({
+        where: { id: parkingSpotId },
+        data: {
+          occupiedSpots: { increment: 1 }
+        }
+      });
+
+      return booking;
     });
 
     return NextResponse.json({ 
       success: true,
-      booking,
+      booking: result,
       totalPrice 
     });
   } catch (error) {

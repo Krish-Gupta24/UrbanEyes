@@ -22,6 +22,17 @@ export default function RoutePage() {
   const [loadingSpots, setLoadingSpots] = useState(false);
   const [destinationCoords, setDestinationCoords] = useState(null);
   const [parkingMarkers, setParkingMarkers] = useState([]);
+  const [eta, setEta] = useState(null);
+
+  // Handle URL parameters from home screen
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromParam = urlParams.get('from');
+    const toParam = urlParams.get('to');
+    
+    if (fromParam) setFromLocation(fromParam);
+    if (toParam) setToLocation(toParam);
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -147,6 +158,13 @@ export default function RoutePage() {
     }
   };
 
+  const calculateETA = (duration) => {
+    const now = new Date();
+    const arrivalTime = new Date(now.getTime() + duration * 1000);
+    setEta(arrivalTime);
+    return arrivalTime;
+  };
+
   const addParkingMarkersToMap = (spots) => {
     if (!leafletMapRef.current || !spots.length) return;
 
@@ -162,7 +180,7 @@ export default function RoutePage() {
           html: `
             <div class="parking-marker-content">
               <div class="parking-icon ${spot.availableSpots > 0 ? 'available' : 'full'}">
-                <Car className="h-4 w-4" />
+                🚗
               </div>
               <div class="parking-info">
                 <div class="price">₹${spot.pricePerHour}/hr</div>
@@ -275,11 +293,15 @@ export default function RoutePage() {
           const routes = e.routes;
           const summary = routes[0].summary;
 
+          // Calculate ETA
+          const arrivalTime = calculateETA(summary.totalTime);
+
           setRouteInfo({
             distance: `${(summary.totalDistance / 1000).toFixed(1)} km`,
             duration: `${Math.round(summary.totalTime / 60)} mins`,
             fromAddress: fromCoords.display_name,
             toAddress: toCoords.display_name,
+            eta: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           });
 
           // Fetch nearby parking spots after route is found
@@ -487,6 +509,17 @@ export default function RoutePage() {
                       {routeInfo.duration}
                     </span>
                   </div>
+                  {routeInfo.eta && (
+                    <div className="flex items-center justify-between p-2 bg-purple-50 rounded">
+                      <span className="font-medium flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        ETA:
+                      </span>
+                      <span className="font-bold text-purple-700">
+                        {routeInfo.eta}
+                      </span>
+                    </div>
+                  )}
                   <div className="mt-4 space-y-2">
                     <div>
                       <span className="font-medium text-gray-700">From:</span>

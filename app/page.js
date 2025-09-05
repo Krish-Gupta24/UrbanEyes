@@ -44,11 +44,19 @@ export default function HomePage() {
   const router = useRouter();
   
 
-  const handleQuickSearch = () => {
-    if (fromLocation.trim() || toLocation.trim()) {
-      const params = new URLSearchParams();
-      if (fromLocation.trim()) params.set("from", fromLocation.trim()); // ✅ correct
-      if (toLocation.trim()) params.set("to", toLocation.trim()); // ✅ correct
+  const handleQuickSearch = (destination = null) => {
+    const params = new URLSearchParams();
+    
+    if (destination) {
+      // If destination is provided (from quick action buttons)
+      params.set("to", destination);
+    } else {
+      // If using the search form
+      if (fromLocation.trim()) params.set("from", fromLocation.trim());
+      if (toLocation.trim()) params.set("to", toLocation.trim());
+    }
+    
+    if (params.toString()) {
       router.push(`/route?${params.toString()}`);
     } else {
       router.push("/route");

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MainNavigation } from "@/components/navigation"
-import { MapPin, Search, Filter, DollarSign, Clock, Star, Navigation, Phone, Zap } from "lucide-react"
+import { MapPin, Search, Filter, DollarSign, Clock, Star, Navigation, Phone, Zap, Trash2 } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 
 
@@ -19,24 +19,42 @@ export default function ParkingPage() {
   const [parkingSpots, setParkingSpots] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [deletingSpot, setDeletingSpot] = useState(null)
 
   const fetchParkingData = async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await apiClient.getParkingSpots(
-        searchLocation,
-        Number.parseInt(radiusFilter),
-        availabilityFilter === "all" ? undefined : availabilityFilter,
+      // First, geocode the search location to get coordinates
+      const geocodeResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchLocation
+        )}&limit=1`
+      )
+      const geocodeData = await geocodeResponse.json()
+
+      if (!geocodeData || geocodeData.length === 0) {
+        throw new Error("Location not found")
+      }
+
+      const coords = {
+        lat: parseFloat(geocodeData[0].lat),
+        lng: parseFloat(geocodeData[0].lon)
+      }
+
+      // Then fetch nearby parking spots
+      const response = await fetch(
+        `/api/parking-spots/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=${radiusFilter}`
       )
 
-      if (response.success) {
-        setParkingSpots(response.parkingSpots)
+      if (response.ok) {
+        const data = await response.json()
+        setParkingSpots(data.spots || [])
       } else {
-        setError("Failed to fetch parking data")
+        throw new Error("Failed to fetch parking spots")
       }
     } catch (err) {
-      setError("Network error occurred")
+      setError(err.message || "Network error occurred")
       console.error("Parking API error:", err)
     } finally {
       setIsLoading(false)
@@ -51,7 +69,35 @@ export default function ParkingPage() {
     fetchParkingData()
   }
 
-  const getAvailabilityColor = (availability) => {
+  const handleDeleteSpot = async (spotId) => {
+    if (!confirm("Are you sure you want to delete this parking spot? This action cannot be undone.")) {
+      return;
+    }
+
+    setDeletingSpot(spotId);
+    try {
+      const response = await fetch(`/api/parking-spots/delete?id=${spotId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        // Remove the spot from the local state
+        setParkingSpots(prev => prev.filter(spot => spot.id !== spotId));
+        alert("Parking spot deleted successfully");
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete parking spot: ${errorData.error}`);
+      }
+    } catch (err) {
+      console.error("Error deleting parking spot:", err);
+      alert("Network error occurred while deleting parking spot");
+    } finally {
+      setDeletingSpot(null);
+    }
+  }
+
+  const getAvailabilityColor = (availableSpots, totalSpots) => {
+    const availability = availableSpots > 0 ? (availableSpots <= 2 ? "limited" : "available") : "full"
     switch (availability) {
       case "available":
         return "text-green-600 bg-green-50 border-green-200"
@@ -64,14 +110,21 @@ export default function ParkingPage() {
     }
   }
 
+  const getAvailabilityText = (availableSpots, totalSpots) => {
+    if (availableSpots === 0) return "full"
+    if (availableSpots <= 2) return "limited"
+    return "available"
+  }
+
   const filteredSpots = parkingSpots.filter((spot) => {
-    if (availabilityFilter !== "all" && spot.availability !== availabilityFilter) return false
+    const availability = getAvailabilityText(spot.availableSpots, spot.totalSpots)
+    if (availabilityFilter !== "all" && availability !== availabilityFilter) return false
     if (priceFilter !== "all") {
-      const price = Number.parseInt(spot.price.replace(/[^\d]/g, ""))
+      const price = spot.pricePerHour
       if (priceFilter === "budget" && price > 35) return false
       if (priceFilter === "premium" && price <= 35) return false
     }
-    const distance = Number.parseFloat(spot.distance.replace(/[^\d.]/g, ""))
+    const distance = spot.distance
     const maxRadius = Number.parseInt(radiusFilter)
     if (distance > maxRadius) return false
     return true
@@ -170,101 +223,106 @@ export default function ParkingPage() {
           <>
             {/* Parking Spots Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredSpots.map((spot) => (
-                <Card
-                  key={spot.id}
-                  className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-card/50 backdrop-blur-sm"
-                >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{spot.name}</CardTitle>
-                        <CardDescription className="flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {spot.distance} away
-                        </CardDescription>
-                      </div>
-                      <Badge className={`${getAvailabilityColor(spot.availability)} border`}>{spot.availability}</Badge>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{spot.rating}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-primary font-semibold">
-                        <DollarSign className="h-4 w-4" />
-                        {spot.price}
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">{spot.address}</p>
-
-                    {/* Availability Bar */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Availability</span>
-                        <span className="font-medium">
-                          {spot.spots}/{spot.totalSpots} spots
-                        </span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full transition-all ${
-                            spot.availability === "available"
-                              ? "bg-green-500"
-                              : spot.availability === "limited"
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
-                          }`}
-                          style={{ width: `${(spot.spots / spot.totalSpots) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Features */}
-                    <div className="flex flex-wrap gap-1">
-                      {spot.features.map((feature) => (
-                        <Badge key={feature} variant="secondary" className="text-xs">
-                          {feature}
+              {filteredSpots.map((spot) => {
+                const availability = getAvailabilityText(spot.availableSpots, spot.totalSpots)
+                return (
+                  <Card
+                    key={spot.id}
+                    className="group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border-0 bg-card/50 backdrop-blur-sm"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{spot.title}</CardTitle>
+                          <CardDescription className="flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" />
+                            {spot.distance.toFixed(2)} km away
+                          </CardDescription>
+                        </div>
+                        <Badge className={`${getAvailabilityColor(spot.availableSpots, spot.totalSpots)} border`}>
+                          {availability}
                         </Badge>
-                      ))}
-                    </div>
-
-                    {/* Contact Info */}
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {spot.hours}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        Contact
-                      </div>
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 pt-2">
-                      <Button className="flex-1" disabled={spot.availability === "full"}>
-                        <Navigation className="h-4 w-4 mr-2" />
-                        {spot.availability === "full" ? "Full" : "Navigate"}
-                      </Button>
-                      <Button variant="outline" size="sm" disabled={spot.availability === "full"}>
-                        <Zap className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-1 text-primary font-semibold">
+                          <DollarSign className="h-4 w-4" />
+                          ₹{spot.pricePerHour}/hr
+                        </div>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">{spot.address}</p>
+                      
+                      {spot.description && (
+                        <p className="text-sm text-muted-foreground">{spot.description}</p>
+                      )}
+
+                      {/* Availability Bar */}
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>Availability</span>
+                          <span className="font-medium">
+                            {spot.availableSpots}/{spot.totalSpots} spots
+                          </span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full transition-all ${
+                              availability === "available"
+                                ? "bg-green-500"
+                                : availability === "limited"
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                            }`}
+                            style={{ width: `${(spot.availableSpots / spot.totalSpots) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          className="flex-1" 
+                          disabled={availability === "full"}
+                          onClick={() => window.open('/booking', '_blank')}
+                        >
+                          <Navigation className="h-4 w-4 mr-2" />
+                          {availability === "full" ? "Full" : "Book Now"}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={availability === "full"}
+                          onClick={() => window.open('/route', '_blank')}
+                        >
+                          <MapPin className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          disabled={deletingSpot === spot.id}
+                          onClick={() => handleDeleteSpot(spot.id)}
+                        >
+                          {deletingSpot === spot.id ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
 
             {/* Quick Stats */}
             <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card className="text-center p-4 border-0 bg-card/50 backdrop-blur-sm">
                 <div className="text-2xl font-bold text-primary mb-1">
-                  {filteredSpots.filter((s) => s.availability === "available").length}
+                  {filteredSpots.filter((s) => getAvailabilityText(s.availableSpots, s.totalSpots) === "available").length}
                 </div>
                 <div className="text-sm text-muted-foreground">Available Now</div>
               </Card>
@@ -275,7 +333,7 @@ export default function ParkingPage() {
                   {filteredSpots.length > 0
                     ? Math.round(
                         filteredSpots.reduce(
-                          (acc, spot) => acc + Number.parseInt(spot.price.replace(/[^\d]/g, "")),
+                          (acc, spot) => acc + spot.pricePerHour,
                           0,
                         ) / filteredSpots.length,
                       )
@@ -286,18 +344,16 @@ export default function ParkingPage() {
 
               <Card className="text-center p-4 border-0 bg-card/50 backdrop-blur-sm">
                 <div className="text-2xl font-bold text-chart-5 mb-1">
-                  {filteredSpots.length > 0
-                    ? (filteredSpots.reduce((acc, spot) => acc + spot.rating, 0) / filteredSpots.length).toFixed(1)
-                    : "0.0"}
+                  {filteredSpots.length}
                 </div>
-                <div className="text-sm text-muted-foreground">Avg Rating</div>
+                <div className="text-sm text-muted-foreground">Total Spots</div>
               </Card>
 
               <Card className="text-center p-4 border-0 bg-card/50 backdrop-blur-sm">
                 <div className="text-2xl font-bold text-chart-3 mb-1">
-                  {filteredSpots.reduce((acc, spot) => acc + spot.spots, 0)}
+                  {filteredSpots.reduce((acc, spot) => acc + spot.availableSpots, 0)}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Spots</div>
+                <div className="text-sm text-muted-foreground">Available Spots</div>
               </Card>
             </div>
           </>
