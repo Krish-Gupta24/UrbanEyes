@@ -343,26 +343,6 @@ export default function ParkingSpotsPage() {
               </Button>
             </div>
           ) : (
-<<<<<<< HEAD
-            spots.map((spot) => (
-              <Card key={spot.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{spot.title}</CardTitle>
-                    
-                  </div>
-                  <CardDescription className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {spot.address}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {spot.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {spot.description}
-                    </p>
-                  )}
-=======
             spots.map((spot) => {
               // Transform spot data to match component expectations
               const spotData = {
@@ -384,62 +364,23 @@ export default function ParkingSpotsPage() {
                   <Card className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
-                        </span>
+                        
                         <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => deleteManualSlip(spot.id)}>-</Button>
-                          <Button size="sm" onClick={() => createManualSlip(spot.id)}><Plus className="h-4 w-4" /></Button>
+                          
                           <Link href={`/admin/parking-spots/${spot.id}`}>
                             <Button size="sm" variant="outline">Details</Button>
                           </Link>
                         </div>
                       </div>
->>>>>>> a05f15756f7c57f1f9a89cfeb46f0a301ac98227
 
                       <div className="flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleAvailability(spot.id, spot.isAvailable)}
-                          className="flex-1"
-                        >
-                          {spot.isAvailable ? "Mark Unavailable" : "Mark Available"}
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        
                       </div>
                     </div>
-<<<<<<< HEAD
-                    <div className="flex items-center text-muted-foreground">
-                      <Clock className="h-4 w-4 mr-1" />
-                      <span>{spot._count?.bookings || 0} bookings</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
-                    </span>
-                    <div className="flex items-center gap-2">
-                    
-                      <Link href={`/admin/parking-spots/${spot.id}`}>
-                        <Button size="sm" variant="outline">Details</Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                
-                </CardContent>
-              </Card>
-            ))
-=======
                   </Card>
                 </div>
               );
             })
->>>>>>> a05f15756f7c57f1f9a89cfeb46f0a301ac98227
           )}
         </div>
       </div>
