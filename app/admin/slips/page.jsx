@@ -223,6 +223,28 @@ export default function SlipsPage() {
     link.click();
   };
 
+  const clearAllData = async () => {
+    if (!confirm("Are you sure you want to clear ALL data? This will delete all slips, reset all parking spot occupancy to 0, and cannot be undone!")) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/slips/clear", {
+        method: "DELETE"
+      });
+
+      if (res.ok) {
+        toast.success("All data cleared successfully");
+        fetchData();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to clear data");
+      }
+    } catch (error) {
+      toast.error("Failed to clear data");
+    }
+  };
+
   const filteredSlips = slips.filter(slip => {
     const matchesFilter = filter === "ALL" || slip.status === filter;
     const matchesSearch = slip.slipNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -267,6 +289,14 @@ export default function SlipsPage() {
             >
               <Plus className="h-4 w-4" />
               <span>Manual Slip</span>
+            </Button>
+            <Button 
+              onClick={clearAllData}
+              variant="destructive"
+              className="flex items-center space-x-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Clear All Data</span>
             </Button>
             <Link href="/admin/dashboard">
               <Button variant="outline" className="flex items-center space-x-2">
@@ -480,13 +510,6 @@ export default function SlipsPage() {
                     >
                       <Download className="h-4 w-4 mr-1" />
                       Download
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.open(slip.qrCode, '_blank')}
-                    >
-                      <Eye className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"

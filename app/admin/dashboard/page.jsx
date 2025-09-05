@@ -190,9 +190,12 @@ export default function AdminDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{bookings.reduce((sum, booking) => sum + booking.totalPrice, 0).toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{(
+                bookings.reduce((sum, booking) => sum + booking.totalPrice, 0) + 
+                slips.filter(s => s.status === "COMPLETED" && s.revenue).reduce((sum, slip) => sum + slip.revenue, 0)
+              ).toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">
-                From {bookings.length} bookings • Avg ₹{(bookings.reduce((sum, booking) => sum + booking.totalPrice, 0) / Math.max(bookings.length, 1)).toFixed(2)}
+                From {bookings.length} bookings + {slips.filter(s => s.status === "COMPLETED").length} completed slips
               </p>
             </CardContent>
           </Card>

@@ -14,7 +14,8 @@ export async function GET(request) {
 
     // Get comprehensive analytics
     const [
-      totalRevenue,
+      bookingRevenue,
+      slipRevenue,
       totalBookings,
       activeBookings,
       totalSpots,
@@ -23,13 +24,23 @@ export async function GET(request) {
       monthlyRevenue,
       averageBookingValue
     ] = await Promise.all([
-      // Total revenue
+      // Booking revenue
       db.booking.aggregate({
         where: { 
           ownerId: userId,
           status: { in: ["ACTIVE", "COMPLETED"] }
         },
         _sum: { totalPrice: true }
+      }),
+
+      // Slip revenue
+      db.parkingSlip.aggregate({
+        where: { 
+          ownerId: userId,
+          status: "COMPLETED",
+          revenue: { not: null }
+        },
+        _sum: { revenue: true }
       }),
 
       // Total bookings count
@@ -125,8 +136,10 @@ export async function GET(request) {
       totalRevenue: spot.bookings.reduce((sum, booking) => sum + booking.totalPrice, 0)
     }));
 
+    const totalRevenue = (bookingRevenue._sum.totalPrice || 0) + (slipRevenue._sum.revenue || 0);
+
     return NextResponse.json({
-      totalRevenue: totalRevenue._sum.totalPrice || 0,
+      totalRevenue,
       totalBookings,
       activeBookings,
       totalSpots,
