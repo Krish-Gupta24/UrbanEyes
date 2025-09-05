@@ -273,27 +273,16 @@ export default function AdminDashboard() {
                 <Link href="/admin/parking-spots">
                   <Button className="w-full justify-start" variant="outline">
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Parking Spot
-                  </Button>
-                </Link>
-                <Link href="/admin/parking-spots">
-                  <Button className="w-full justify-start" variant="outline">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Manage Spots
+                    Add / Manage Parking Spot
                   </Button>
                 </Link>
                 <Link href="/admin/slips">
                   <Button className="w-full justify-start" variant="outline">
                     <QrCode className="h-4 w-4 mr-2" />
-                    Generate Slips
+                    Generate / Manage Slips
                   </Button>
                 </Link>
-                <Link href="/admin/analytics">
-                  <Button className="w-full justify-start" variant="outline">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    View Analytics
-                  </Button>
-                </Link>
+                
                 <div className="pt-2 border-t">
                   <p className="text-sm font-medium text-muted-foreground mb-2">Quick Slip Generation</p>
                   {parkingSpots.filter(spot => spot.totalSpots > spot.occupiedSpots).slice(0, 3).map((spot) => (

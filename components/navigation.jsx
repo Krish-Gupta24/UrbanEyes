@@ -14,10 +14,12 @@ export function MainNavigation() {
 
   const navItems = [
     { href: "/", label: "Home" },
+    { href: "/", label: "Home" },
+    { href: "/parking", label: "Parking Finder" },
     { href: "/booking", label: "Book Parking" },
     { href: "/route", label: "Route Planner" },
-    { href: "/ar", label: "AR Landmarks" },
-  ]
+    { href: "/ar", label: "AR Navigation" },
+  ];
 
   const handleSignOut = () => {
     signOut({ callbackUrl: "/" })
