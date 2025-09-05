@@ -20,13 +20,12 @@ export default function ParkingSpotsPage() {
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
-    description: "",
     address: "",
-    latitude: "",
-    longitude: "",
-    pricePerHour: ""
+    pricePerHour: "",
+    totalSpots: ""
   });
 
   useEffect(() => {
@@ -60,26 +59,92 @@ export default function ParkingSpotsPage() {
     }
   };
 
+  const createManualSlip = async (spotId) => {
+    try {
+      const res = await fetch("/api/admin/slips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ parkingSpotId: spotId })
+      });
+      if (res.ok) {
+        toast.success("Slip added, spot occupied");
+        fetchSpots();
+      } else {
+        const err = await res.json();
+        toast.error(err.error || "Failed to add slip");
+      }
+    } catch (e) {
+      toast.error("Failed to add slip");
+    }
+  };
+
+  const deleteManualSlip = async (spotId) => {
+    try {
+      // Get one manual slip for this spot (bookingId null)
+      const listRes = await fetch(`/api/admin/slips?spotId=${spotId}`);
+      if (!listRes.ok) {
+        toast.error("Failed to fetch slips");
+        return;
+      }
+      const { slips } = await listRes.json();
+      const manual = slips.find((s) => !s.bookingId);
+      if (!manual) {
+        toast.error("No manual slips to delete");
+        return;
+      }
+      const delRes = await fetch(`/api/admin/slips/${manual.id}`, { method: "DELETE" });
+      if (delRes.ok) {
+        toast.success("Slip removed, spot freed");
+        fetchSpots();
+      } else {
+        const err = await delRes.json();
+        toast.error(err.error || "Failed to delete slip");
+      }
+    } catch (e) {
+      toast.error("Failed to delete slip");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!formData.title || !formData.address || !formData.pricePerHour) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Validate price
+    if (isNaN(parseFloat(formData.pricePerHour))) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    // Use default coordinates for Delhi (simplified)
+    const submitData = {
+      ...formData,
+      latitude: "28.6139",
+      longitude: "77.2090",
+      description: "Parking spot available for booking"
+    };
     
     try {
       const res = await fetch("/api/admin/parking-spots", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       if (res.ok) {
-        toast.success("Parking spot added successfully");
+        toast.success("Parking spot added successfully!");
         setIsDialogOpen(false);
         setFormData({
           title: "",
-          description: "",
           address: "",
-          latitude: "",
-          longitude: "",
-          pricePerHour: ""
+          pricePerHour: "",
+          totalSpots: ""
         });
         fetchSpots();
       } else {
@@ -88,6 +153,8 @@ export default function ParkingSpotsPage() {
       }
     } catch (error) {
       toast.error("Failed to add parking spot");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -128,8 +195,12 @@ export default function ParkingSpotsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Parking Spots</h1>
-            <p className="text-muted-foreground">Manage your parking spot listings</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              Parking Spots
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your parking spot listings
+            </p>
           </div>
           <div className="flex space-x-2">
             <Link href="/admin/dashboard">
@@ -154,22 +225,15 @@ export default function ParkingSpotsPage() {
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Title</Label>
+                    <Label htmlFor="title">Spot Name</Label>
                     <Input
                       id="title"
                       value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
                       placeholder="e.g., Downtown Premium Spot"
                       required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Describe your parking spot..."
                     />
                   </div>
                   <div className="space-y-2">
@@ -177,54 +241,55 @@ export default function ParkingSpotsPage() {
                     <Input
                       id="address"
                       value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="123 Main St, City, State"
+                      onChange={(e) =>
+                        setFormData({ ...formData, address: e.target.value })
+                      }
+                      placeholder="123 Main St, Delhi"
                       required
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="latitude">Latitude</Label>
-                      <Input
-                        id="latitude"
-                        type="number"
-                        step="any"
-                        value={formData.latitude}
-                        onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                        placeholder="40.7128"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="longitude">Longitude</Label>
-                      <Input
-                        id="longitude"
-                        type="number"
-                        step="any"
-                        value={formData.longitude}
-                        onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                        placeholder="-74.0060"
-                        required
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalSpots">Total Spots</Label>
+                    <Input
+                      id="totalSpots"
+                      type="number"
+                      min="0"
+                      value={formData.totalSpots}
+                      onChange={(e) =>
+                        setFormData({ ...formData, totalSpots: e.target.value })
+                      }
+                      placeholder="150"
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="pricePerHour">Price per Hour ($)</Label>
+                    <Label htmlFor="pricePerHour">Price per Hour (₹)</Label>
                     <Input
                       id="pricePerHour"
                       type="number"
                       step="0.01"
                       value={formData.pricePerHour}
-                      onChange={(e) => setFormData({ ...formData, pricePerHour: e.target.value })}
-                      placeholder="5.00"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          pricePerHour: e.target.value,
+                        })
+                      }
+                      placeholder="50"
                       required
                     />
                   </div>
                   <div className="flex justify-end space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsDialogOpen(false)}
+                      disabled={isSubmitting}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit">Add Spot</Button>
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "Adding..." : "Add Spot"}
+                    </Button>
                   </div>
                 </form>
               </DialogContent>
@@ -237,8 +302,12 @@ export default function ParkingSpotsPage() {
           {spots.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No parking spots yet</h3>
-              <p className="text-muted-foreground mb-4">Add your first parking spot to start earning</p>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                No parking spots yet
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                Add your first parking spot to start earning
+              </p>
               <Button onClick={() => setIsDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Your First Spot
@@ -261,13 +330,15 @@ export default function ParkingSpotsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {spot.description && (
-                    <p className="text-sm text-muted-foreground">{spot.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {spot.description}
+                    </p>
                   )}
-                  
+
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center text-muted-foreground">
                       <DollarSign className="h-4 w-4 mr-1" />
-                      <span>${spot.pricePerHour}/hour</span>
+                      <span>₹{spot.pricePerHour}/hour</span>
                     </div>
                     <div className="flex items-center text-muted-foreground">
                       <Clock className="h-4 w-4 mr-1" />
@@ -275,11 +346,26 @@ export default function ParkingSpotsPage() {
                     </div>
                   </div>
 
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => deleteManualSlip(spot.id)}>-</Button>
+                      <Button size="sm" onClick={() => createManualSlip(spot.id)}><Plus className="h-4 w-4" /></Button>
+                      <Link href={`/admin/parking-spots/${spot.id}`}>
+                        <Button size="sm" variant="outline">Details</Button>
+                      </Link>
+                    </div>
+                  </div>
+
                   <div className="flex space-x-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => toggleAvailability(spot.id, spot.isAvailable)}
+                      onClick={() =>
+                        toggleAvailability(spot.id, spot.isAvailable)
+                      }
                       className="flex-1"
                     >
                       {spot.isAvailable ? "Mark Unavailable" : "Mark Available"}
@@ -287,7 +373,11 @@ export default function ParkingSpotsPage() {
                     <Button size="sm" variant="outline">
                       <Edit className="h-4 w-4" />
                     </Button>
-                    <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-red-600 hover:text-red-700"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>

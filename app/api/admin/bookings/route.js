@@ -20,7 +20,8 @@ export async function GET(request) {
             title: true,
             address: true
           }
-        }
+        },
+        slip: true
       },
       orderBy: { createdAt: "desc" },
       take: 10

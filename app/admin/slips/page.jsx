@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { QrCode, Download, Eye, ArrowLeft, Filter, Search } from "lucide-react";
+import { QrCode, Download, Eye, ArrowLeft, Filter, Search, Plus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import Image from "next/image";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function SlipsPage() {
   const { data: session, status } = useSession();
@@ -215,7 +216,7 @@ export default function SlipsPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Price:</span>
-                      <span className="font-medium">${slip.booking.totalPrice.toFixed(2)}</span>
+                      <span className="font-medium">₹{slip.booking.totalPrice.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Valid Until:</span>
@@ -249,6 +250,49 @@ export default function SlipsPage() {
             ))
           )}
         </div>
+
+        {/* Slip Generation Dialog */}
+        <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Generate Parking Slip</DialogTitle>
+              <DialogDescription>
+                Select a booking to generate a parking slip with QR code.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {bookings.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">No bookings available for slip generation</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {bookings.map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{booking.customerName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {booking.parkingSpot.title} • ₹{booking.totalPrice.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(booking.startTime).toLocaleDateString()} - {new Date(booking.endTime).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          generateSlip(booking.id);
+                          setShowBookingDialog(false);
+                        }}
+                        disabled={booking.slip} // Disable if slip already exists
+                      >
+                        {booking.slip ? "Slip Exists" : "Generate Slip"}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

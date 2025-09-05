@@ -14,8 +14,8 @@ export function MainNavigation() {
 
   const navItems = [
     { href: "/", label: "Home" },
+    { href: "/booking", label: "Book Parking" },
     { href: "/route", label: "Route Planner" },
-    { href: "/parking", label: "Parking Finder" },
     { href: "/ar", label: "AR Landmarks" },
   ]
 

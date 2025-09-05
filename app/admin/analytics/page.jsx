@@ -16,10 +16,13 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState({
     totalRevenue: 0,
     totalBookings: 0,
+    activeBookings: 0,
+    totalSpots: 0,
     averageBookingValue: 0,
     occupancyRate: 0,
-    topSpots: [],
-    recentActivity: []
+    topPerformingSpots: [],
+    recentBookings: [],
+    monthlyRevenue: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -43,33 +46,13 @@ export default function AnalyticsPage() {
     try {
       setLoading(true);
       
-      // Fetch stats
-      const statsRes = await fetch("/api/admin/stats");
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setAnalytics(prev => ({
-          ...prev,
-          totalRevenue: statsData.revenue,
-          totalBookings: statsData.activeBookings,
-          occupancyRate: statsData.occupancyRate
-        }));
-      }
-
-      // Fetch bookings for analytics
-      const bookingsRes = await fetch("/api/admin/bookings");
-      if (bookingsRes.ok) {
-        const bookingsData = await bookingsRes.json();
-        const bookings = bookingsData.bookings;
-        
-        // Calculate average booking value
-        const totalValue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
-        const avgValue = bookings.length > 0 ? totalValue / bookings.length : 0;
-        
-        setAnalytics(prev => ({
-          ...prev,
-          averageBookingValue: avgValue,
-          recentActivity: bookings.slice(0, 5)
-        }));
+      // Fetch comprehensive analytics
+      const res = await fetch("/api/admin/analytics");
+      if (res.ok) {
+        const data = await res.json();
+        setAnalytics(data);
+      } else {
+        toast.error("Failed to load analytics");
       }
 
     } catch (error) {
@@ -97,8 +80,8 @@ export default function AnalyticsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Analytics</h1>
-            <p className="text-muted-foreground">Track your parking business performance</p>
+            <h1 className="text-3xl font-bold text-foreground">Business Analytics</h1>
+            <p className="text-muted-foreground">Track performance, optimize pricing, and grow your parking business</p>
           </div>
           <Link href="/admin/dashboard">
             <Button variant="outline" className="flex items-center space-x-2">
@@ -106,6 +89,25 @@ export default function AnalyticsPage() {
               <span>Back to Dashboard</span>
             </Button>
           </Link>
+        </div>
+
+        {/* Analytics Purpose */}
+        <div className="mb-8 p-6 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">Why Analytics Matter</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800 dark:text-blue-200">
+            <div>
+              <h4 className="font-medium mb-1">💰 Revenue Optimization</h4>
+              <p>Track earnings patterns to optimize pricing and spot availability</p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-1">📊 Performance Insights</h4>
+              <p>Understand which spots perform best and identify growth opportunities</p>
+            </div>
+            <div>
+              <h4 className="font-medium mb-1">🎯 Business Growth</h4>
+              <p>Make data-driven decisions to scale your parking business effectively</p>
+            </div>
+          </div>
         </div>
 
         {/* Key Metrics */}
@@ -116,7 +118,7 @@ export default function AnalyticsPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${analytics.totalRevenue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{analytics.totalRevenue.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">All time earnings</p>
             </CardContent>
           </Card>
@@ -138,7 +140,7 @@ export default function AnalyticsPage() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${analytics.averageBookingValue.toFixed(2)}</div>
+              <div className="text-2xl font-bold">₹{analytics.averageBookingValue.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">Per booking</p>
             </CardContent>
           </Card>
@@ -157,18 +159,35 @@ export default function AnalyticsPage() {
 
         {/* Charts and Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue Chart Placeholder */}
+          {/* Top Performing Spots */}
           <Card>
             <CardHeader>
-              <CardTitle>Revenue Trend</CardTitle>
-              <CardDescription>Monthly revenue over time</CardDescription>
+              <CardTitle>Top Performing Spots</CardTitle>
+              <CardDescription>Your most profitable parking locations</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-center justify-center bg-muted/20 rounded-lg">
-                <div className="text-center">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">Chart visualization coming soon</p>
-                </div>
+              <div className="space-y-4">
+                {analytics.topPerformingSpots.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No spots data available</p>
+                ) : (
+                  analytics.topPerformingSpots.map((spot, index) => (
+                    <div key={spot.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-bold text-green-600">#{index + 1}</span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{spot.title}</p>
+                          <p className="text-sm text-muted-foreground">{spot.address}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">₹{spot.totalRevenue.toFixed(2)}</p>
+                        <p className="text-sm text-muted-foreground">{spot.bookingCount} bookings</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -176,15 +195,15 @@ export default function AnalyticsPage() {
           {/* Recent Activity */}
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest booking activities</CardDescription>
+              <CardTitle>Recent Bookings</CardTitle>
+              <CardDescription>Latest customer activities</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analytics.recentActivity.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No recent activity</p>
+                {analytics.recentBookings.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No recent bookings</p>
                 ) : (
-                  analytics.recentActivity.map((booking, index) => (
+                  analytics.recentBookings.map((booking, index) => (
                     <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
@@ -198,7 +217,7 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">${booking.totalPrice.toFixed(2)}</p>
+                        <p className="font-medium">₹{booking.totalPrice.toFixed(2)}</p>
                         <Badge variant={booking.status === "ACTIVE" ? "default" : "secondary"}>
                           {booking.status}
                         </Badge>
@@ -215,29 +234,70 @@ export default function AnalyticsPage() {
         <div className="mt-8">
           <Card>
             <CardHeader>
-              <CardTitle>Performance Insights</CardTitle>
-              <CardDescription>Key insights about your parking business</CardDescription>
+              <CardTitle>Business Insights & Recommendations</CardTitle>
+              <CardDescription>Actionable insights to grow your parking business</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-green-600 mb-2">
                     {analytics.occupancyRate > 70 ? "Excellent" : 
                      analytics.occupancyRate > 40 ? "Good" : "Needs Improvement"}
                   </div>
-                  <p className="text-sm text-muted-foreground">Occupancy Performance</p>
+                  <p className="text-sm text-muted-foreground">Occupancy Rate: {analytics.occupancyRate}%</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analytics.occupancyRate > 70 ? "Great utilization!" : 
+                     analytics.occupancyRate > 40 ? "Room for improvement" : "Consider lowering prices"}
+                  </p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-blue-600 mb-2">
-                    ${analytics.averageBookingValue.toFixed(0)}
+                    ₹{analytics.averageBookingValue.toFixed(0)}
                   </div>
-                  <p className="text-sm text-muted-foreground">Average Booking Value</p>
+                  <p className="text-sm text-muted-foreground">Avg Booking Value</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analytics.averageBookingValue > 50 ? "Premium pricing working" : "Consider value optimization"}
+                  </p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <div className="text-2xl font-bold text-purple-600 mb-2">
-                    {analytics.totalBookings > 0 ? "Active" : "Inactive"}
+                    {analytics.totalSpots}
                   </div>
-                  <p className="text-sm text-muted-foreground">Business Status</p>
+                  <p className="text-sm text-muted-foreground">Total Spots</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analytics.totalSpots < 5 ? "Consider adding more spots" : "Good spot diversity"}
+                  </p>
+                </div>
+                <div className="text-center p-4 border rounded-lg">
+                  <div className="text-2xl font-bold text-orange-600 mb-2">
+                    {analytics.activeBookings}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Active Bookings</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {analytics.activeBookings > 0 ? "Business is active" : "Focus on marketing"}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Business Recommendations */}
+              <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg">
+                <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">💡 Business Recommendations</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-1">Pricing Strategy</h5>
+                    <p className="text-blue-700 dark:text-blue-300">
+                      {analytics.occupancyRate > 70 ? "Consider increasing prices for high-demand spots" : 
+                       analytics.occupancyRate < 30 ? "Lower prices to attract more customers" : 
+                       "Current pricing seems balanced"}
+                    </p>
+                  </div>
+                  <div>
+                    <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-1">Growth Opportunities</h5>
+                    <p className="text-blue-700 dark:text-blue-300">
+                      {analytics.totalSpots < 3 ? "Add more parking spots to increase revenue potential" :
+                       "Focus on optimizing existing spots and customer retention"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </CardContent>

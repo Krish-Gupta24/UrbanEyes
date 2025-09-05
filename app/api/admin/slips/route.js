@@ -14,10 +14,14 @@ export async function GET(request) {
     const userId = token.id;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const parkingSpotId = searchParams.get("spotId");
 
     const whereClause = { ownerId: userId };
     if (status) {
       whereClause.status = status;
+    }
+    if (parkingSpotId) {
+      whereClause.parkingSpotId = parkingSpotId;
     }
 
     const slips = await db.parkingSlip.findMany({
@@ -52,72 +56,106 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { bookingId } = body;
+    const { bookingId, parkingSpotId } = body;
 
-    if (!bookingId) {
-      return NextResponse.json({ error: "Booking ID is required" }, { status: 400 });
-    }
+    // Branch 1: slip for a booking (existing flow)
+    if (bookingId) {
+      const booking = await db.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          parkingSpot: true
+        }
+      });
 
-    // Get booking details
-    const booking = await db.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        parkingSpot: true
+      if (!booking || booking.ownerId !== token.id) {
+        return NextResponse.json({ error: "Booking not found" }, { status: 404 });
       }
-    });
 
-    if (!booking || booking.ownerId !== token.id) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
+      const existingSlip = await db.parkingSlip.findUnique({ where: { bookingId } });
+      if (existingSlip) {
+        return NextResponse.json({ error: "Slip already exists for this booking" }, { status: 409 });
+      }
 
-    // Check if slip already exists
-    const existingSlip = await db.parkingSlip.findUnique({
-      where: { bookingId }
-    });
-
-    if (existingSlip) {
-      return NextResponse.json({ error: "Slip already exists for this booking" }, { status: 409 });
-    }
-
-    // Generate unique slip number
-    const slipNumber = `PS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-    
-    // Generate QR code
-    const qrData = JSON.stringify({
-      slipNumber,
-      bookingId,
-      spotTitle: booking.parkingSpot.title,
-      validUntil: booking.endTime.toISOString()
-    });
-    
-    const qrCode = await QRCode.toDataURL(qrData);
-
-    // Create slip
-    const slip = await db.parkingSlip.create({
-      data: {
+      const slipNumber = `PS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+      const qrData = JSON.stringify({
         slipNumber,
-        qrCode,
-        validUntil: booking.endTime,
         bookingId,
-        parkingSpotId: booking.parkingSpotId,
-        ownerId: token.id
-      },
-      include: {
-        booking: {
-          include: {
-            parkingSpot: {
-              select: {
-                title: true,
-                address: true
+        spotTitle: booking.parkingSpot.title,
+        validUntil: booking.endTime.toISOString()
+      });
+      const qrCode = await QRCode.toDataURL(qrData);
+
+      const slip = await db.parkingSlip.create({
+        data: {
+          slipNumber,
+          qrCode,
+          validUntil: booking.endTime,
+          bookingId,
+          parkingSpotId: booking.parkingSpotId,
+          ownerId: token.id
+        },
+        include: {
+          booking: {
+            include: {
+              parkingSpot: {
+                select: { title: true, address: true }
               }
             }
           }
         }
+      });
+
+      return NextResponse.json({ slip }, { status: 201 });
+    }
+
+    // Branch 2: manual slip for a parking spot (no booking)
+    if (!parkingSpotId) {
+      return NextResponse.json({ error: "parkingSpotId is required for manual slip" }, { status: 400 });
+    }
+
+    // Ensure spot belongs to owner
+    const spot = await db.parkingSpot.findUnique({ where: { id: parkingSpotId } });
+    if (!spot || spot.ownerId !== token.id) {
+      return NextResponse.json({ error: "Parking spot not found" }, { status: 404 });
+    }
+
+    if (spot.totalSpots <= 0) {
+      return NextResponse.json({ error: "Set total spots before adding slips" }, { status: 400 });
+    }
+    if (spot.occupiedSpots >= spot.totalSpots) {
+      return NextResponse.json({ error: "No free spots available" }, { status: 409 });
+    }
+
+    const slipNumber = `PS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    const validUntil = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours by default
+    const qrData = JSON.stringify({ slipNumber, parkingSpotId, validUntil: validUntil.toISOString() });
+    const qrCode = await QRCode.toDataURL(qrData);
+
+    // Transaction: create slip and increment occupiedSpots
+    const result = await db.$transaction(async (tx) => {
+      const updated = await tx.parkingSpot.update({
+        where: { id: parkingSpotId },
+        data: { occupiedSpots: { increment: 1 } }
+      });
+      if (updated.occupiedSpots > updated.totalSpots) {
+        throw new Error("Capacity exceeded");
       }
+      const slip = await tx.parkingSlip.create({
+        data: {
+          slipNumber,
+          qrCode,
+          validUntil,
+          bookingId: null,
+          parkingSpotId,
+          ownerId: token.id
+        }
+      });
+      return slip;
     });
 
-    return NextResponse.json({ slip }, { status: 201 });
+    return NextResponse.json({ slip: result }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const message = error?.message || "Internal Server Error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
