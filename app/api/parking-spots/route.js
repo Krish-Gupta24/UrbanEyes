@@ -12,7 +12,10 @@ export async function GET() {
         address: true,
         latitude: true,
         longitude: true,
-        pricePerHour: true
+        pricePerHour: true,
+        totalSpots: true,
+        occupiedSpots: true,
+        isAvailable: true
       }
     });
 

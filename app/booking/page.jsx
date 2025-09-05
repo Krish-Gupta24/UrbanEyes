@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MapPin, Clock, Car, Calendar, CheckCircle, AlertCircle, Users } from "lucide-react";
+import { MapPin, Clock, Car, Calendar, CheckCircle, AlertCircle, Users, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,9 @@ export default function BookingPage() {
   const router = useRouter();
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [isOnline, setIsOnline] = useState(true);
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [bookingData, setBookingData] = useState({
     startTime: "",
@@ -26,24 +29,111 @@ export default function BookingPage() {
   });
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingId, setBookingId] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [isBooking, setIsBooking] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connected');
 
+  // Online/offline detection with connection status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setConnectionStatus('connected');
+      // Refresh data when coming back online
+      if (!loading && !refreshing) {
+        fetchSpots(true);
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      setConnectionStatus('disconnected');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loading, refreshing, fetchSpots]);
+
+  // Initial data fetch
   useEffect(() => {
     fetchSpots();
   }, []);
 
-  const fetchSpots = async () => {
+  // Auto-refresh every 15 seconds for better real-time experience
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isOnline && !loading && !refreshing) {
+        fetchSpots(true); // Silent refresh
+      }
+    }, 15000); // Reduced from 30s to 15s for better real-time updates
+
+    return () => clearInterval(interval);
+  }, [isOnline, loading, refreshing]);
+
+  // Additional refresh on window focus for better UX
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isOnline && !loading && !refreshing) {
+        fetchSpots(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isOnline, loading, refreshing, fetchSpots]);
+
+  const fetchSpots = useCallback(async (silent = false) => {
+    if (!isOnline) {
+      setError("You're offline. Please check your internet connection.");
+      setConnectionStatus('disconnected');
+      return;
+    }
+
     try {
-      const res = await fetch("/api/parking-spots");
+      if (!silent) {
+        setRefreshing(true);
+        setError(null);
+      }
+      
+      setConnectionStatus('connecting');
+      
+      const res = await fetch("/api/parking-spots", {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
       if (res.ok) {
         const data = await res.json();
-        setSpots(data.spots);
+        setSpots(data.spots || []);
+        setLastUpdated(new Date());
+        setError(null);
+        setConnectionStatus('connected');
+        
+        if (!silent) {
+          toast.success("Parking spots updated");
+        }
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to fetch parking spots');
       }
     } catch (error) {
-      toast.error("Failed to load parking spots");
+      console.error("Error fetching spots:", error);
+      setError(error.message);
+      setConnectionStatus('error');
+      if (!silent) {
+        toast.error(error.message);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [isOnline]);
 
   const handleBooking = async () => {
     if (!selectedSpot) {
@@ -56,10 +146,41 @@ export default function BookingPage() {
       return;
     }
 
+    if (!isOnline) {
+      toast.error("You're offline. Please check your internet connection.");
+      return;
+    }
+
+    // Check if spot is still available
+    const currentSpot = spots.find(s => s.id === selectedSpot.id);
+    if (!currentSpot || currentSpot.totalSpots <= currentSpot.occupiedSpots) {
+      toast.error("This parking spot is no longer available. Please select another spot.");
+      setSelectedSpot(null);
+      fetchSpots(); // Refresh data
+      return;
+    }
+
+    // Set booking state
+    setIsBooking(true);
+    setConnectionStatus('connecting');
+
+    // Optimistic update - immediately update UI to show booking in progress
+    const originalSpots = [...spots];
+    setSpots(prevSpots => 
+      prevSpots.map(spot => 
+        spot.id === selectedSpot.id 
+          ? { ...spot, occupiedSpots: spot.occupiedSpots + 1 }
+          : spot
+      )
+    );
+
     try {
       const res = await fetch("/api/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache"
+        },
         body: JSON.stringify({
           ...bookingData,
           parkingSpotId: selectedSpot.id,
@@ -72,13 +193,46 @@ export default function BookingPage() {
         const data = await res.json();
         setBookingId(data.booking.id);
         setBookingSuccess(true);
+        setConnectionStatus('connected');
         toast.success("Booking created successfully!");
+        
+        // Refresh spots data after successful booking to ensure accuracy
+        setTimeout(() => {
+          fetchSpots(true);
+        }, 1000);
       } else {
+        // Revert optimistic update on failure
+        setSpots(originalSpots);
+        setConnectionStatus('error');
+        
         const error = await res.json();
-        toast.error(error.error || "Failed to create booking");
+        let errorMessage = error.error || "Failed to create booking";
+        
+        // Provide more specific error messages
+        if (error.error?.includes("not available") || error.error?.includes("occupied")) {
+          errorMessage = "This spot is no longer available. Please select another spot.";
+          setSelectedSpot(null);
+        } else if (error.error?.includes("validation")) {
+          errorMessage = "Please check your booking details and try again.";
+        }
+        
+        toast.error(errorMessage);
+        
+        // Refresh data to get latest availability
+        fetchSpots(true);
       }
     } catch (error) {
-      toast.error("Failed to create booking");
+      // Revert optimistic update on network error
+      setSpots(originalSpots);
+      setConnectionStatus('error');
+      
+      console.error("Booking error:", error);
+      toast.error("Network error. Please check your connection and try again.");
+      
+      // Refresh data to get latest state
+      fetchSpots(true);
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -126,7 +280,11 @@ export default function BookingPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto mb-4"></div>
+          <h2 className="text-xl font-semibold mb-2">Loading Parking Spots</h2>
+          <p className="text-muted-foreground">Fetching real-time availability...</p>
+        </div>
       </div>
     );
   }
@@ -185,7 +343,73 @@ export default function BookingPage() {
   return (
     <div className="min-h-screen bg-background py-8">
       <div className="container mx-auto px-4">
-        <h1 className="text-3xl font-bold text-center mb-8">Book Parking Spot</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Book Parking Spot</h1>
+          <div className="flex items-center space-x-4">
+            {/* Enhanced Connection Status */}
+            <div className="flex items-center space-x-2 text-sm">
+              {connectionStatus === 'connected' ? (
+                <div className="flex items-center text-green-600">
+                  <Wifi className="h-4 w-4 mr-1" />
+                  <span>Live Data</span>
+                </div>
+              ) : connectionStatus === 'connecting' ? (
+                <div className="flex items-center text-blue-600">
+                  <RefreshCw className="h-4 w-4 mr-1 animate-spin" />
+                  <span>Syncing...</span>
+                </div>
+              ) : connectionStatus === 'error' ? (
+                <div className="flex items-center text-red-600">
+                  <WifiOff className="h-4 w-4 mr-1" />
+                  <span>Connection Error</span>
+                </div>
+              ) : (
+                <div className="flex items-center text-red-600">
+                  <WifiOff className="h-4 w-4 mr-1" />
+                  <span>Offline</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Refresh Button */}
+            <Button
+              onClick={() => fetchSpots()}
+              disabled={refreshing || !isOnline}
+              variant="outline"
+              size="sm"
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Status Messages */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+            <span className="text-red-800">{error}</span>
+            <Button
+              onClick={() => fetchSpots()}
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+
+        {lastUpdated && (
+          <div className="mb-4 text-sm text-muted-foreground text-center flex items-center justify-center">
+            <Clock className="h-4 w-4 mr-1" />
+            Last updated: {lastUpdated.toLocaleTimeString()}
+            {refreshing && (
+              <RefreshCw className="h-3 w-3 ml-2 animate-spin text-primary" />
+            )}
+          </div>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Available Spots */}
@@ -226,10 +450,26 @@ export default function BookingPage() {
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Users className="h-4 w-4 mr-1" />
                             {spot.totalSpots - spot.occupiedSpots} of {spot.totalSpots} available
+                            {refreshing && (
+                              <RefreshCw className="h-3 w-3 ml-2 animate-spin text-primary" />
+                            )}
                           </div>
                           <div className={`px-2 py-1 rounded-full text-xs font-medium ${availability.bg} ${availability.color}`}>
                             {availability.text}
                           </div>
+                        </div>
+                        
+                        {/* Real-time availability bar */}
+                        <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                          <div 
+                            className={`h-2 rounded-full transition-all duration-300 ${
+                              availability.text === "Full" ? "bg-red-500" :
+                              availability.text === "Low" ? "bg-yellow-500" : "bg-green-500"
+                            }`}
+                            style={{ 
+                              width: `${(spot.occupiedSpots / spot.totalSpots) * 100}%` 
+                            }}
+                          ></div>
                         </div>
                         {!isAvailable && (
                           <div className="flex items-center text-sm text-red-600 mt-2">
@@ -326,14 +566,42 @@ export default function BookingPage() {
                       <span className="font-medium">Total Price:</span>
                       <span className="text-xl font-bold text-primary">₹{calculatePrice().toFixed(2)}</span>
                     </div>
+                    {refreshing && (
+                      <div className="flex items-center text-xs text-muted-foreground mt-2">
+                        <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                        Updating availability...
+                      </div>
+                    )}
                   </div>
 
                   <Button 
                     onClick={handleBooking} 
                     className="w-full"
-                    disabled={!isBookingValid() || !bookingData.customerName || !bookingData.customerEmail}
+                    disabled={!isBookingValid() || !bookingData.customerName || !bookingData.customerEmail || refreshing || !isOnline || isBooking}
                   >
-                    Book Now
+                    {isBooking ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Processing Booking...
+                      </>
+                    ) : refreshing ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Updating Availability...
+                      </>
+                    ) : !isOnline ? (
+                      <>
+                        <WifiOff className="h-4 w-4 mr-2" />
+                        Offline
+                      </>
+                    ) : connectionStatus === 'error' ? (
+                      <>
+                        <WifiOff className="h-4 w-4 mr-2" />
+                        Connection Error
+                      </>
+                    ) : (
+                      "Book Now"
+                    )}
                   </Button>
                   
                   {!isBookingValid() && bookingData.startTime && bookingData.endTime && (
