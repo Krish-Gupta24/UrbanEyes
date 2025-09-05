@@ -319,9 +319,7 @@ export default function ParkingSpotsPage() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">{spot.title}</CardTitle>
-                    <Badge variant={spot.isAvailable ? "default" : "secondary"}>
-                      {spot.isAvailable ? "Available" : "Unavailable"}
-                    </Badge>
+                    
                   </div>
                   <CardDescription className="flex items-center">
                     <MapPin className="h-4 w-4 mr-1" />
@@ -351,36 +349,14 @@ export default function ParkingSpotsPage() {
                       Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
                     </span>
                     <div className="flex items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => deleteManualSlip(spot.id)}>-</Button>
-                      <Button size="sm" onClick={() => createManualSlip(spot.id)}><Plus className="h-4 w-4" /></Button>
+                    
                       <Link href={`/admin/parking-spots/${spot.id}`}>
                         <Button size="sm" variant="outline">Details</Button>
                       </Link>
                     </div>
                   </div>
 
-                  <div className="flex space-x-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        toggleAvailability(spot.id, spot.isAvailable)
-                      }
-                      className="flex-1"
-                    >
-                      {spot.isAvailable ? "Mark Unavailable" : "Mark Available"}
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                
                 </CardContent>
               </Card>
             ))

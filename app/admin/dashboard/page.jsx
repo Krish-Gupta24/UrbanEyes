@@ -145,8 +145,12 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Parking Management</h1>
-            <p className="text-muted-foreground">Manage your parking business</p>
+            <h1 className="text-3xl font-bold text-foreground">
+              Parking Management
+            </h1>
+            <p className="text-muted-foreground">
+              Manage your parking business
+            </p>
           </div>
           <Link href="/">
             <Button variant="outline" className="flex items-center space-x-2">
@@ -160,26 +164,38 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Spots</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Spots Available</CardTitle>
               <MapPin className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)}</div>
+              <div className="text-2xl font-bold">
+                {parkingSpots.reduce(
+                  (sum, spot) => sum + (spot.totalSpots - spot.occupiedSpots),
+                  0
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {parkingSpots.length} locations • {parkingSpots.reduce((sum, spot) => sum + (spot.totalSpots - spot.occupiedSpots), 0)} available
+                {parkingSpots.length} locations •{" "}
+                {parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)}{" "}
+                
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Bookings</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Active Bookings
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{bookings.filter(b => b.status === "ACTIVE").length}</div>
+              <div className="text-2xl font-bold">
+                {bookings.filter((b) => b.status === "ACTIVE").length}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {bookings.length} total • {slips.filter(s => s.status === "ACTIVE").length} active slips
+                {bookings.length} total •{" "}
+                {slips.filter((s) => s.status === "ACTIVE").length} active slips
               </p>
             </CardContent>
           </Card>
@@ -190,29 +206,57 @@ export default function AdminDashboard() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{(
-                bookings.reduce((sum, booking) => sum + booking.totalPrice, 0) + 
-                slips.filter(s => s.status === "COMPLETED" && s.revenue).reduce((sum, slip) => sum + slip.revenue, 0)
-              ).toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                ₹
+                {(
+                  bookings.reduce(
+                    (sum, booking) => sum + booking.totalPrice,
+                    0
+                  ) +
+                  slips
+                    .filter((s) => s.status === "COMPLETED" && s.revenue)
+                    .reduce((sum, slip) => sum + slip.revenue, 0)
+                ).toFixed(2)}
+              </div>
               <p className="text-xs text-muted-foreground">
-                From {bookings.length} bookings + {slips.filter(s => s.status === "COMPLETED").length} completed slips
+                From {bookings.length} bookings +{" "}
+                {slips.filter((s) => s.status === "COMPLETED").length} completed
+                slips
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Occupancy Rate
+              </CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {parkingSpots.length > 0 ? 
-                  Math.round((parkingSpots.reduce((sum, spot) => sum + spot.occupiedSpots, 0) / 
-                  parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)) * 100) : 0}%
+                {parkingSpots.length > 0
+                  ? Math.round(
+                      (parkingSpots.reduce(
+                        (sum, spot) => sum + spot.occupiedSpots,
+                        0
+                      ) /
+                        parkingSpots.reduce(
+                          (sum, spot) => sum + spot.totalSpots,
+                          0
+                        )) *
+                        100
+                    )
+                  : 0}
+                %
               </div>
               <p className="text-xs text-muted-foreground">
-                {parkingSpots.reduce((sum, spot) => sum + spot.occupiedSpots, 0)}/{parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)} occupied
+                {parkingSpots.reduce(
+                  (sum, spot) => sum + spot.occupiedSpots,
+                  0
+                )}
+                /{parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)}{" "}
+                occupied
               </p>
             </CardContent>
           </Card>
@@ -224,34 +268,50 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader>
               <CardTitle>Recent Bookings</CardTitle>
-              <CardDescription>Latest parking spot reservations</CardDescription>
+              <CardDescription>
+                Latest parking spot reservations
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {bookings.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No bookings yet</p>
+                  <p className="text-muted-foreground text-center py-4">
+                    No bookings yet
+                  </p>
                 ) : (
                   bookings.slice(0, 5).map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
                       <div className="flex items-center space-x-3">
                         {getStatusIcon(booking.status)}
                         <div>
-                          <p className="font-medium">{booking.parkingSpot.title}</p>
+                          <p className="font-medium">
+                            {booking.parkingSpot.title}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {booking.customerName} • {booking.customerEmail}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(booking.startTime).toLocaleDateString()} - {new Date(booking.endTime).toLocaleDateString()}
+                            {new Date(booking.startTime).toLocaleDateString()} -{" "}
+                            {new Date(booking.endTime).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">₹{booking.totalPrice.toFixed(2)}</p>
-                        <p className={`text-sm ${
-                          booking.status === "ACTIVE" ? "text-green-600" : 
-                          booking.status === "COMPLETED" ? "text-blue-600" : 
-                          "text-red-600"
-                        }`}>
+                        <p className="font-medium">
+                          ₹{booking.totalPrice.toFixed(2)}
+                        </p>
+                        <p
+                          className={`text-sm ${
+                            booking.status === "ACTIVE"
+                              ? "text-green-600"
+                              : booking.status === "COMPLETED"
+                              ? "text-blue-600"
+                              : "text-red-600"
+                          }`}
+                        >
                           {booking.status}
                         </p>
                       </div>
@@ -282,22 +342,28 @@ export default function AdminDashboard() {
                     Generate / Manage Slips
                   </Button>
                 </Link>
-                
+
                 <div className="pt-2 border-t">
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Quick Slip Generation</p>
-                  {parkingSpots.filter(spot => spot.totalSpots > spot.occupiedSpots).slice(0, 3).map((spot) => (
-                    <Button
-                      key={spot.id}
-                      size="sm"
-                      variant="ghost"
-                      className="w-full justify-start text-xs"
-                      onClick={() => quickGenerateSlip(spot.id)}
-                      disabled={quickActions.generatingSlip}
-                    >
-                      <QrCode className="h-3 w-3 mr-2" />
-                      {spot.title} ({spot.totalSpots - spot.occupiedSpots} available)
-                    </Button>
-                  ))}
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Quick Slip Generation
+                  </p>
+                  {parkingSpots
+                    .filter((spot) => spot.totalSpots > spot.occupiedSpots)
+                    .slice(0, 3)
+                    .map((spot) => (
+                      <Button
+                        key={spot.id}
+                        size="sm"
+                        variant="ghost"
+                        className="w-full justify-start text-xs"
+                        onClick={() => quickGenerateSlip(spot.id)}
+                        disabled={quickActions.generatingSlip}
+                      >
+                        <QrCode className="h-3 w-3 mr-2" />
+                        {spot.title} ({spot.totalSpots - spot.occupiedSpots}{" "}
+                        available)
+                      </Button>
+                    ))}
                 </div>
               </div>
             </CardContent>
@@ -307,7 +373,9 @@ export default function AdminDashboard() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Parking Spots</CardTitle>
-              <CardDescription>All your listed spots with availability</CardDescription>
+              <CardDescription>
+                All your listed spots with availability
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -317,13 +385,20 @@ export default function AdminDashboard() {
                   parkingSpots.map((spot) => {
                     const availability = getAvailabilityStatus(spot);
                     return (
-                      <div key={spot.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                      <div
+                        key={spot.id}
+                        className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                      >
                         <div className="flex items-start justify-between mb-2">
                           <div>
                             <p className="font-medium">{spot.title}</p>
-                            <p className="text-sm text-muted-foreground">{spot.address}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {spot.address}
+                            </p>
                           </div>
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${availability.bg} ${availability.color}`}>
+                          <div
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${availability.bg} ${availability.color}`}
+                          >
                             {availability.text}
                           </div>
                         </div>
@@ -335,13 +410,18 @@ export default function AdminDashboard() {
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className={`h-2 rounded-full ${
-                                availability.text === "Full" ? "bg-red-500" :
-                                availability.text === "Low" ? "bg-yellow-500" : "bg-green-500"
+                                availability.text === "Full"
+                                  ? "bg-red-500"
+                                  : availability.text === "Low"
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
                               }`}
-                              style={{ 
-                                width: `${(spot.occupiedSpots / spot.totalSpots) * 100}%` 
+                              style={{
+                                width: `${
+                                  (spot.occupiedSpots / spot.totalSpots) * 100
+                                }%`,
                               }}
                             ></div>
                           </div>
@@ -365,25 +445,36 @@ export default function AdminDashboard() {
                 {slips.length === 0 ? (
                   <p className="text-muted-foreground">No slips yet</p>
                 ) : (
-                  slips.slice(0,6).map((slip) => (
-                    <div key={slip.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                  slips.slice(0, 6).map((slip) => (
+                    <div
+                      key={slip.id}
+                      className="p-4 border rounded-lg hover:shadow-md transition-shadow"
+                    >
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-medium text-sm">{slip.slipNumber}</p>
+                          <p className="font-medium text-sm">
+                            {slip.slipNumber}
+                          </p>
                           <p className="text-xs text-muted-foreground">
-                            {slip.booking?.parkingSpot?.title || slip.parkingSpot?.title}
+                            {slip.booking?.parkingSpot?.title ||
+                              slip.parkingSpot?.title}
                           </p>
                         </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          slip.status === "ACTIVE" ? "bg-green-50 text-green-600" :
-                          slip.status === "EXPIRED" ? "bg-red-50 text-red-600" :
-                          "bg-gray-50 text-gray-600"
-                        }`}>
+                        <div
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            slip.status === "ACTIVE"
+                              ? "bg-green-50 text-green-600"
+                              : slip.status === "EXPIRED"
+                              ? "bg-red-50 text-red-600"
+                              : "bg-gray-50 text-gray-600"
+                          }`}
+                        >
                           {slip.status}
                         </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Valid until: {new Date(slip.validUntil).toLocaleDateString()}
+                        Valid until:{" "}
+                        {new Date(slip.validUntil).toLocaleDateString()}
                       </div>
                       {slip.booking && (
                         <div className="text-xs text-muted-foreground mt-1">
