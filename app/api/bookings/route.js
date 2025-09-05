@@ -4,7 +4,7 @@ import { db } from "@/lib/prisma";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { parkingSpotId, startTime, endTime, customerName, customerEmail, customerPhone } = body;
+    const { parkingSpotId, startTime, endTime, customerName, customerEmail, customerPhone, carNumber } = body;
 
     if (!parkingSpotId || !startTime || !endTime || !customerName || !customerEmail) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -35,7 +35,8 @@ export async function POST(request) {
         totalPrice,
         customerName,
         customerEmail,
-        customerPhone
+        customerPhone,
+        carNumber
       }
     });
 
@@ -49,3 +50,4 @@ export async function POST(request) {
     return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
   }
 }
+

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, MapPin, BarChart3, ArrowLeft, Plus, QrCode } from "lucide-react";
+import { Settings, Users, MapPin, BarChart3, ArrowLeft, Plus, QrCode, Clock, TrendingUp, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -22,6 +22,10 @@ export default function AdminDashboard() {
   const [parkingSpots, setParkingSpots] = useState([]);
   const [slips, setSlips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [quickActions, setQuickActions] = useState({
+    generatingSlip: false,
+    addingSpot: false
+  });
 
   useEffect(() => {
     if (status === "loading") return;
@@ -77,6 +81,52 @@ export default function AdminDashboard() {
     }
   };
 
+  const quickGenerateSlip = async (spotId) => {
+    try {
+      setQuickActions(prev => ({ ...prev, generatingSlip: true }));
+      const res = await fetch("/api/admin/slips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          parkingSpotId: spotId,
+          validHours: 12
+        })
+      });
+
+      if (res.ok) {
+        toast.success("Quick slip generated successfully!");
+        fetchDashboardData();
+      } else {
+        const error = await res.json();
+        toast.error(error.error || "Failed to generate slip");
+      }
+    } catch (error) {
+      toast.error("Failed to generate slip");
+    } finally {
+      setQuickActions(prev => ({ ...prev, generatingSlip: false }));
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "ACTIVE":
+        return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "COMPLETED":
+        return <CheckCircle className="h-4 w-4 text-blue-600" />;
+      case "CANCELLED":
+        return <XCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return <Clock className="h-4 w-4 text-yellow-600" />;
+    }
+  };
+
+  const getAvailabilityStatus = (spot) => {
+    const available = spot.totalSpots - spot.occupiedSpots;
+    if (available === 0) return { text: "Full", color: "text-red-600", bg: "bg-red-50" };
+    if (available <= 2) return { text: "Low", color: "text-yellow-600", bg: "bg-yellow-50" };
+    return { text: "Available", color: "text-green-600", bg: "bg-green-50" };
+  };
+
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -114,8 +164,10 @@ export default function AdminDashboard() {
               <MapPin className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalSpots}</div>
-              <p className="text-xs text-muted-foreground">Parking spots listed</p>
+              <div className="text-2xl font-bold">{parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                {parkingSpots.length} locations • {parkingSpots.reduce((sum, spot) => sum + (spot.totalSpots - spot.occupiedSpots), 0)} available
+              </p>
             </CardContent>
           </Card>
 
@@ -125,30 +177,40 @@ export default function AdminDashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.activeBookings}</div>
-              <p className="text-xs text-muted-foreground">Currently booked</p>
+              <div className="text-2xl font-bold">{bookings.filter(b => b.status === "ACTIVE").length}</div>
+              <p className="text-xs text-muted-foreground">
+                {bookings.length} total • {slips.filter(s => s.status === "ACTIVE").length} active slips
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹{stats.revenue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Total earnings</p>
+              <div className="text-2xl font-bold">₹{bookings.reduce((sum, booking) => sum + booking.totalPrice, 0).toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">
+                From {bookings.length} bookings • Avg ₹{(bookings.reduce((sum, booking) => sum + booking.totalPrice, 0) / Math.max(bookings.length, 1)).toFixed(2)}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
-              <Settings className="h-4 w-4 text-muted-foreground" />
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.occupancyRate}%</div>
-              <p className="text-xs text-muted-foreground">Spot utilization</p>
+              <div className="text-2xl font-bold">
+                {parkingSpots.length > 0 ? 
+                  Math.round((parkingSpots.reduce((sum, spot) => sum + spot.occupiedSpots, 0) / 
+                  parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)) * 100) : 0}%
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {parkingSpots.reduce((sum, spot) => sum + spot.occupiedSpots, 0)}/{parkingSpots.reduce((sum, spot) => sum + spot.totalSpots, 0)} occupied
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -166,16 +228,19 @@ export default function AdminDashboard() {
                 {bookings.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">No bookings yet</p>
                 ) : (
-                  bookings.map((booking) => (
-                    <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{booking.parkingSpot.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {booking.customerName} • {booking.customerEmail}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(booking.startTime).toLocaleDateString()} - {new Date(booking.endTime).toLocaleDateString()}
-                        </p>
+                  bookings.slice(0, 5).map((booking) => (
+                    <div key={booking.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        {getStatusIcon(booking.status)}
+                        <div>
+                          <p className="font-medium">{booking.parkingSpot.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {booking.customerName} • {booking.customerEmail}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(booking.startTime).toLocaleDateString()} - {new Date(booking.endTime).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">₹{booking.totalPrice.toFixed(2)}</p>
@@ -217,15 +282,31 @@ export default function AdminDashboard() {
                 <Link href="/admin/slips">
                   <Button className="w-full justify-start" variant="outline">
                     <QrCode className="h-4 w-4 mr-2" />
-                    Slips
+                    Generate Slips
                   </Button>
                 </Link>
-                <Link href="/admin/slips">
+                <Link href="/admin/analytics">
                   <Button className="w-full justify-start" variant="outline">
-                    <Users className="h-4 w-4 mr-2" />
-                    Manage Bookings
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    View Analytics
                   </Button>
                 </Link>
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Quick Slip Generation</p>
+                  {parkingSpots.filter(spot => spot.totalSpots > spot.occupiedSpots).slice(0, 3).map((spot) => (
+                    <Button
+                      key={spot.id}
+                      size="sm"
+                      variant="ghost"
+                      className="w-full justify-start text-xs"
+                      onClick={() => quickGenerateSlip(spot.id)}
+                      disabled={quickActions.generatingSlip}
+                    >
+                      <QrCode className="h-3 w-3 mr-2" />
+                      {spot.title} ({spot.totalSpots - spot.occupiedSpots} available)
+                    </Button>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -241,17 +322,41 @@ export default function AdminDashboard() {
                 {parkingSpots.length === 0 ? (
                   <p className="text-muted-foreground">No spots yet</p>
                 ) : (
-                  parkingSpots.map((spot) => (
-                    <div key={spot.id} className="p-4 border rounded-lg">
-                      <p className="font-medium">{spot.title}</p>
-                      <p className="text-sm text-muted-foreground">{spot.address}</p>
-                      <p className="text-xs text-muted-foreground">Lat: {spot.latitude}, Lng: {spot.longitude}</p>
-                      <div className="flex items-center justify-between mt-2 text-sm">
-                        <span>₹{spot.pricePerHour.toFixed(2)}/hr</span>
-                        <span className="text-muted-foreground">Active: {spot._count?.bookings || 0}</span>
+                  parkingSpots.map((spot) => {
+                    const availability = getAvailabilityStatus(spot);
+                    return (
+                      <div key={spot.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium">{spot.title}</p>
+                            <p className="text-sm text-muted-foreground">{spot.address}</p>
+                          </div>
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${availability.bg} ${availability.color}`}>
+                            {availability.text}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>₹{spot.pricePerHour.toFixed(2)}/hr</span>
+                            <span className="text-muted-foreground">
+                              {spot.occupiedSpots}/{spot.totalSpots} occupied
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full ${
+                                availability.text === "Full" ? "bg-red-500" :
+                                availability.text === "Low" ? "bg-yellow-500" : "bg-green-500"
+                              }`}
+                              style={{ 
+                                width: `${(spot.occupiedSpots / spot.totalSpots) * 100}%` 
+                              }}
+                            ></div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </CardContent>
@@ -269,10 +374,30 @@ export default function AdminDashboard() {
                   <p className="text-muted-foreground">No slips yet</p>
                 ) : (
                   slips.slice(0,6).map((slip) => (
-                    <div key={slip.id} className="p-4 border rounded-lg">
-                      <p className="font-medium">{slip.slipNumber}</p>
-                      <p className="text-sm text-muted-foreground">{slip.booking?.parkingSpot?.title}</p>
-                      <p className="text-xs text-muted-foreground">Status: {slip.status}</p>
+                    <div key={slip.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="font-medium text-sm">{slip.slipNumber}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {slip.booking?.parkingSpot?.title || slip.parkingSpot?.title}
+                          </p>
+                        </div>
+                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          slip.status === "ACTIVE" ? "bg-green-50 text-green-600" :
+                          slip.status === "EXPIRED" ? "bg-red-50 text-red-600" :
+                          "bg-gray-50 text-gray-600"
+                        }`}>
+                          {slip.status}
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Valid until: {new Date(slip.validUntil).toLocaleDateString()}
+                      </div>
+                      {slip.booking && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Customer: {slip.booking.customerName}
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

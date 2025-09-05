@@ -36,6 +36,12 @@ export async function GET(request) {
               }
             }
           }
+        },
+        parkingSpot: {
+          select: {
+            title: true,
+            address: true
+          }
         }
       },
       orderBy: { createdAt: "desc" }
@@ -49,14 +55,17 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    console.log("=== SLIP GENERATION API CALLED ===");
     const token = await getToken({ req: request });
     
     if (!token || token.role !== "OWNER") {
+      console.log("Unauthorized access");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { bookingId, parkingSpotId } = body;
+    const { bookingId, parkingSpotId, validHours, carNumber } = body;
+    console.log("Request body:", { bookingId, parkingSpotId, validHours });
 
     // Branch 1: slip for a booking (existing flow)
     if (bookingId) {
@@ -81,7 +90,8 @@ export async function POST(request) {
         slipNumber,
         bookingId,
         spotTitle: booking.parkingSpot.title,
-        validUntil: booking.endTime.toISOString()
+        validUntil: booking.endTime.toISOString(),
+        carNumber: carNumber || booking.carNumber || booking.customerName
       });
       const qrCode = await QRCode.toDataURL(qrData);
 
@@ -92,7 +102,8 @@ export async function POST(request) {
           validUntil: booking.endTime,
           bookingId,
           parkingSpotId: booking.parkingSpotId,
-          ownerId: token.id
+          ownerId: token.id,
+          carNumber: carNumber || booking.carNumber || null
         },
         include: {
           booking: {
@@ -110,11 +121,16 @@ export async function POST(request) {
 
     // Branch 2: manual slip for a parking spot (no booking)
     if (!parkingSpotId) {
+      console.log("No parkingSpotId provided for manual slip");
       return NextResponse.json({ error: "parkingSpotId is required for manual slip" }, { status: 400 });
     }
 
+    console.log("Creating manual slip for parking spot:", parkingSpotId);
+    
     // Ensure spot belongs to owner
     const spot = await db.parkingSpot.findUnique({ where: { id: parkingSpotId } });
+    console.log("Found spot:", spot ? "Yes" : "No", spot?.ownerId === token.id ? "Owner match" : "Owner mismatch");
+    
     if (!spot || spot.ownerId !== token.id) {
       return NextResponse.json({ error: "Parking spot not found" }, { status: 404 });
     }
@@ -127,19 +143,29 @@ export async function POST(request) {
     }
 
     const slipNumber = `PS-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-    const validUntil = new Date(Date.now() + 12 * 60 * 60 * 1000); // 12 hours by default
-    const qrData = JSON.stringify({ slipNumber, parkingSpotId, validUntil: validUntil.toISOString() });
+    const hours = validHours || 12;
+    const validUntil = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const qrData = JSON.stringify({ 
+      slipNumber, 
+      parkingSpotId, 
+      validUntil: validUntil.toISOString(),
+      carNumber: carNumber || null
+    });
     const qrCode = await QRCode.toDataURL(qrData);
 
     // Transaction: create slip and increment occupiedSpots
+    console.log("Starting transaction to create slip and update occupancy");
     const result = await db.$transaction(async (tx) => {
       const updated = await tx.parkingSpot.update({
         where: { id: parkingSpotId },
         data: { occupiedSpots: { increment: 1 } }
       });
+      console.log("Updated spot occupancy:", updated.occupiedSpots, "/", updated.totalSpots);
+      
       if (updated.occupiedSpots > updated.totalSpots) {
         throw new Error("Capacity exceeded");
       }
+      
       const slip = await tx.parkingSlip.create({
         data: {
           slipNumber,
@@ -147,14 +173,18 @@ export async function POST(request) {
           validUntil,
           bookingId: null,
           parkingSpotId,
-          ownerId: token.id
+          ownerId: token.id,
+          carNumber: carNumber || null
         }
       });
+      console.log("Created slip:", slip.slipNumber);
       return slip;
     });
 
+    console.log("Manual slip created successfully");
     return NextResponse.json({ slip: result }, { status: 201 });
   } catch (error) {
+    console.error("Slip generation error:", error);
     const message = error?.message || "Internal Server Error";
     return NextResponse.json({ error: message }, { status: 500 });
   }

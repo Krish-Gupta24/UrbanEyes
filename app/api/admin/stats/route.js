@@ -25,8 +25,8 @@ export async function GET(request) {
       }
     });
 
-    // Get total revenue
-    const revenueResult = await db.booking.aggregate({
+    // Get total revenue from bookings
+    const bookingRevenueResult = await db.booking.aggregate({
       where: { 
         ownerId: userId,
         status: { in: ["ACTIVE", "COMPLETED"] }
@@ -34,20 +34,36 @@ export async function GET(request) {
       _sum: { totalPrice: true }
     });
 
-    // Get occupancy rate
-    const totalBookings = await db.booking.count({
+    // Get total revenue from completed slips
+    const slipRevenueResult = await db.parkingSlip.aggregate({
       where: { 
         ownerId: userId,
-        status: { in: ["ACTIVE", "COMPLETED"] }
-      }
+        status: "COMPLETED",
+        revenue: { not: null }
+      },
+      _sum: { revenue: true }
     });
 
-    const occupancyRate = totalSpots > 0 ? Math.round((totalBookings / totalSpots) * 100) : 0;
+    const totalRevenue = (bookingRevenueResult._sum.totalPrice || 0) + (slipRevenueResult._sum.revenue || 0);
+
+    // Get occupancy rate based on actual spot capacity
+    const totalCapacity = await db.parkingSpot.aggregate({
+      where: { ownerId: userId },
+      _sum: { totalSpots: true }
+    });
+
+    const totalOccupied = await db.parkingSpot.aggregate({
+      where: { ownerId: userId },
+      _sum: { occupiedSpots: true }
+    });
+
+    const occupancyRate = totalCapacity._sum.totalSpots > 0 ? 
+      Math.round((totalOccupied._sum.occupiedSpots / totalCapacity._sum.totalSpots) * 100) : 0;
 
     return NextResponse.json({
       totalSpots,
       activeBookings,
-      revenue: revenueResult._sum.totalPrice || 0,
+      revenue: totalRevenue,
       occupancyRate
     });
   } catch (error) {

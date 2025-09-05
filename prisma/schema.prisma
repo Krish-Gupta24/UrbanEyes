@@ -49,6 +49,7 @@ model Booking {
   customerName  String
   customerEmail String
   customerPhone String?
+  carNumber     String?
   parkingSpotId String
   ownerId       String
   createdAt     DateTime     @default(now())
@@ -64,12 +65,15 @@ model ParkingSlip {
   qrCode        String
   status        String      @default("ACTIVE")
   validUntil    DateTime
-  bookingId     String      @unique
+  bookingId     String?     @unique
   parkingSpotId String
   ownerId       String
+  carNumber     String?
+  revenue       Float?      @default(0)
+  completedAt   DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking       Booking?    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   owner         User        @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   parkingSpot   ParkingSpot @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
 }
