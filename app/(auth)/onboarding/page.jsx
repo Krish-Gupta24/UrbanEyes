@@ -35,7 +35,7 @@ export default function OnboardingPage() {
 
   const userSteps = [
     {
-      title: "Welcome to NaviAR!",
+      title: "Welcome to UrbanEyes!",
       description: "Your smart navigation companion",
       content: (
         <div className="text-center space-y-6">
@@ -104,7 +104,7 @@ export default function OnboardingPage() {
     },
     {
       title: "You're All Set!",
-      description: "Start exploring with NaviAR",
+      description: "Start exploring with UrbanEyes",
       content: (
         <div className="text-center space-y-6">
           <div className="bg-primary/10 rounded-full w-24 h-24 flex items-center justify-center mx-auto">
@@ -113,7 +113,7 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <h3 className="text-xl font-semibold">Ready to Navigate!</h3>
             <p className="text-muted-foreground">
-              Join thousands of users who trust NaviAR for their daily
+              Join thousands of users who trust UrbanEyes for their daily
               navigation needs.
             </p>
             <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-lg p-4">
@@ -280,7 +280,7 @@ export default function OnboardingPage() {
             <div className="bg-primary rounded-lg p-2">
               <MapPin className="h-6 w-6 text-primary-foreground" />
             </div>
-            <span className="text-2xl font-bold text-foreground">NaviAR</span>
+            <span className="text-2xl font-bold text-foreground">UrbanEyes</span>
           </div>
           <Progress value={progress} className="w-full h-2" />
           <p className="text-sm text-muted-foreground">
