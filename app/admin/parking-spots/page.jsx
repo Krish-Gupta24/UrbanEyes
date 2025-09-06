@@ -352,32 +352,35 @@ export default function ParkingSpotsPage() {
               };
               
               return (
-                <div key={spot.id} className="space-y-4">
+                <div key={spot.id} className="relative">
                   <ParkingSpotCard
                     spot={spotData}
                     showDeleteButton={true}
                     onDelete={handleDeleteSpot}
                     isDeleting={deletingSpot === spot.id}
+                    className="relative"
                   />
                   
-                  {/* Additional admin controls */}
-                  <Card className="p-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        
-                        <div className="flex items-center gap-2">
-                          
-                          <Link href={`/admin/parking-spots/${spot.id}`}>
-                            <Button size="sm" variant="outline">Details</Button>
-                          </Link>
-                        </div>
-                      </div>
-
-                      <div className="flex space-x-2">
-                        
-                      </div>
+                  {/* Details button integrated into card */}
+                  <div className="absolute top-4 right-4">
+                    <Link href={`/admin/parking-spots/${spot.id}`}>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="bg-white/90 backdrop-blur-sm hover:bg-white shadow-sm border-gray-200"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        Details
+                      </Button>
+                    </Link>
+                  </div>
+                  
+                  {/* Additional admin info overlay */}
+                  <div className="absolute bottom-4 right-4">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 text-xs text-gray-600 shadow-sm border border-gray-200">
+                      Capacity: {spot.occupiedSpots || 0}/{spot.totalSpots || 0}
                     </div>
-                  </Card>
+                  </div>
                 </div>
               );
             })

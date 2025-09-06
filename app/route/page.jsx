@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Navigation, RotateCcw, Clock, Route, Car, Users, DollarSign, RefreshCw, AlertCircle } from "lucide-react";
 import { MainNavigation } from "@/components/navigation";
-import { ParkingSpotListItem } from "@/components/parking-spot-card";
+import { ParkingSpotCard } from "@/components/parking-spot-card";
 import { toast } from "sonner";
 
 export default function RoutePage() {
@@ -564,18 +564,23 @@ export default function RoutePage() {
                     <p className="text-sm text-gray-600">Finding parking spots...</p>
                   </div>
                 ) : nearbySpots.length > 0 ? (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
                     {nearbySpots.map((spot, index) => (
-                      <ParkingSpotListItem
+                      <div
                         key={spot.id}
-                        spot={spot}
+                        className="cursor-pointer hover:scale-[1.02] transition-transform duration-200"
                         onClick={() => {
                           // Center map on this parking spot
                           if (leafletMapRef.current) {
                             leafletMapRef.current.setView([spot.latitude, spot.longitude], 16);
                           }
                         }}
-                      />
+                      >
+                        <ParkingSpotCard
+                          spot={spot}
+                          className="hover:shadow-lg transition-shadow duration-200"
+                        />
+                      </div>
                     ))}
                   </div>
                 ) : (
