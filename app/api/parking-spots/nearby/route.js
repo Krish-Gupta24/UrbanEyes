@@ -17,18 +17,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const lat = parseFloat(searchParams.get('lat'));
-    const lng = parseFloat(searchParams.get('lng'));
-    const radius = parseFloat(searchParams.get('radius')) || 2; // Default 2km radius
-
-    console.log("Nearby API called with:", { lat, lng, radius });
-
-    if (!lat || !lng) {
-      return NextResponse.json({ error: "Latitude and longitude are required" }, { status: 400 });
-    }
-
-    // Get all available parking spots
+    // Get all available parking spots without any distance filtering
     const allSpots = await db.parkingSpot.findMany({
       where: { isAvailable: true },
       select: {
@@ -45,39 +34,19 @@ export async function GET(request) {
       }
     });
 
-    console.log("Found spots in database:", allSpots.length);
-
-    // Filter spots within the specified radius
-    const nearbySpots = allSpots
-      .filter(spot => {
-        if (!spot.latitude || !spot.longitude) {
-          console.log("Spot has no coordinates:", spot.id, spot.title);
-          return false;
-        }
-        const distance = calculateDistance(lat, lng, spot.latitude, spot.longitude);
-        console.log(`Spot ${spot.title}: distance ${distance.toFixed(2)}km, radius ${radius}km`);
-        return distance <= radius;
-      })
-      .map(spot => {
-        const distance = calculateDistance(lat, lng, spot.latitude, spot.longitude);
-        return {
-          ...spot,
-          distance: Math.round(distance * 1000) / 1000, // Round to 3 decimal places
-          availableSpots: spot.totalSpots - spot.occupiedSpots
-        };
-      })
-      .sort((a, b) => a.distance - b.distance); // Sort by distance
-
-    console.log("Nearby spots found:", nearbySpots.length);
+    // Transform spots to include availableSpots and set distance to 0
+    const spots = allSpots.map(spot => ({
+      ...spot,
+      distance: 0, // No distance calculation needed
+      availableSpots: spot.totalSpots - spot.occupiedSpots
+    }));
 
     return NextResponse.json({ 
-      spots: nearbySpots,
-      totalFound: nearbySpots.length,
-      searchCenter: { lat, lng },
-      radius: radius
+      spots: spots,
+      totalFound: spots.length
     });
   } catch (error) {
-    console.error("Error fetching nearby parking spots:", error);
-    return NextResponse.json({ error: "Failed to fetch nearby parking spots" }, { status: 500 });
+    console.error("Error fetching parking spots:", error);
+    return NextResponse.json({ error: "Failed to fetch parking spots" }, { status: 500 });
   }
 }
