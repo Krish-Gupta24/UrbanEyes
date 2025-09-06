@@ -277,8 +277,8 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="bg-primary rounded-lg p-2">
-              <MapPin className="h-6 w-6 text-primary-foreground" />
+            <div >
+              <img src="/logo.png" className="h-6 w-6 text-primary-foreground" />
             </div>
             <span className="text-2xl font-bold text-foreground">UrbanEyes</span>
           </div>
