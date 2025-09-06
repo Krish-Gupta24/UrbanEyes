@@ -19,6 +19,9 @@ export async function GET() {
       }
     });
 
+    console.log("Main API - Found spots:", spots.length);
+    console.log("Sample spot:", spots[0]);
+
     return NextResponse.json({ spots });
   } catch (error) {
     console.error("Error fetching parking spots:", error);

@@ -139,15 +139,22 @@ export default function RoutePage() {
   const fetchNearbyParkingSpots = async (lat, lng) => {
     try {
       setLoadingSpots(true);
+      console.log("Fetching nearby parking spots for:", lat, lng);
+      
       const response = await fetch(
         `/api/parking-spots/nearby?lat=${lat}&lng=${lng}&radius=2`
       );
       
+      console.log("Response status:", response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log("Parking spots data:", data);
         setNearbySpots(data.spots || []);
         return data.spots || [];
       } else {
+        const errorText = await response.text();
+        console.error("API Error:", response.status, errorText);
         throw new Error("Failed to fetch parking spots");
       }
     } catch (error) {

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { MainNavigation } from "@/components/navigation"
 import { ParkingSpotCard } from "@/components/parking-spot-card"
-import { MapPin, Search, Filter, DollarSign, Clock, Star, Navigation, Phone, Zap, Trash2 } from "lucide-react"
+import { MapPin, Search, Filter, DollarSign, Clock, Star, Navigation, Phone, Zap } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 
 
@@ -20,7 +20,6 @@ export default function ParkingPage() {
   const [parkingSpots, setParkingSpots] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [deletingSpot, setDeletingSpot] = useState(null)
 
   const fetchParkingData = async () => {
     setIsLoading(true)
@@ -107,32 +106,6 @@ export default function ParkingPage() {
     }
   }
 
-  const handleDeleteSpot = async (spotId) => {
-    if (!confirm("Are you sure you want to delete this parking spot? This action cannot be undone.")) {
-      return;
-    }
-
-    setDeletingSpot(spotId);
-    try {
-      const response = await fetch(`/api/parking-spots/delete?id=${spotId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        // Remove the spot from the local state
-        setParkingSpots(prev => prev.filter(spot => spot.id !== spotId));
-        alert("Parking spot deleted successfully");
-      } else {
-        const errorData = await response.json();
-        alert(`Failed to delete parking spot: ${errorData.error}`);
-      }
-    } catch (err) {
-      console.error("Error deleting parking spot:", err);
-      alert("Network error occurred while deleting parking spot");
-    } finally {
-      setDeletingSpot(null);
-    }
-  }
 
   const getAvailabilityText = (availableSpots, totalSpots) => {
     if (availableSpots === 0) return "full"
@@ -260,9 +233,7 @@ export default function ParkingPage() {
                 <ParkingSpotCard
                   key={spot.id}
                   spot={spot}
-                  showDeleteButton={true}
-                  onDelete={handleDeleteSpot}
-                  isDeleting={deletingSpot === spot.id}
+                  showDeleteButton={false}
                 />
               ))}
             </div>

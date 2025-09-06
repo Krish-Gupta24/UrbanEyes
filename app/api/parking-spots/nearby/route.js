@@ -22,6 +22,8 @@ export async function GET(request) {
     const lng = parseFloat(searchParams.get('lng'));
     const radius = parseFloat(searchParams.get('radius')) || 2; // Default 2km radius
 
+    console.log("Nearby API called with:", { lat, lng, radius });
+
     if (!lat || !lng) {
       return NextResponse.json({ error: "Latitude and longitude are required" }, { status: 400 });
     }
@@ -43,11 +45,17 @@ export async function GET(request) {
       }
     });
 
+    console.log("Found spots in database:", allSpots.length);
+
     // Filter spots within the specified radius
     const nearbySpots = allSpots
       .filter(spot => {
-        if (!spot.latitude || !spot.longitude) return false;
+        if (!spot.latitude || !spot.longitude) {
+          console.log("Spot has no coordinates:", spot.id, spot.title);
+          return false;
+        }
         const distance = calculateDistance(lat, lng, spot.latitude, spot.longitude);
+        console.log(`Spot ${spot.title}: distance ${distance.toFixed(2)}km, radius ${radius}km`);
         return distance <= radius;
       })
       .map(spot => {
@@ -59,6 +67,8 @@ export async function GET(request) {
         };
       })
       .sort((a, b) => a.distance - b.distance); // Sort by distance
+
+    console.log("Nearby spots found:", nearbySpots.length);
 
     return NextResponse.json({ 
       spots: nearbySpots,
